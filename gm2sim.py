@@ -10,6 +10,7 @@ TODO:
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate as spint
+from scipy import optimize
 
 #MeV units
 n_muons = 10000
@@ -142,15 +143,43 @@ def decayMuons(n,t):
     
     return muonlist
    
-
-genmuons = decayMuons(n_muons,0.)
-
 #--------------------
 energies = []
 pangles = []
 momenta = []
 
 
+
+times = list(np.arange(0,300,2))
+#counts = [2815, 2805, 2794, 2611, 2439, 2373, 2212, 2030, 1861, 1631, 1517, 1354, 1197, 1094, 1048, 962, 889, 970, 1029, 1175, 1291, 1425, 1577, 1850, 1953, 2115, 2312, 2406, 2525, 2629, 2774, 2782, 2804, 2738, 2703, 2507, 2430, 2217, 2097, 1928, 1754, 1602, 1375, 1294, 1164, 1040, 963, 975, 936, 1027, 1068, 1186, 1324, 1550, 1698, 1890, 2001, 2242, 2380, 2458, 2665, 2764, 2782, 2823, 2766, 2715, 2554, 2465, 2269, 2102, 1979, 1783, 1586, 1531, 1394, 1233, 1053, 1033, 995, 957, 977, 1071, 1186, 1314, 1440, 1570, 1799, 2028, 2128, 2240, 2469, 2542, 2667, 2794, 2724, 2802, 2670, 2613, 2551, 2372, 2245, 2004, 1834, 1661, 1535, 1341, 1299, 1106, 1045, 1050, 936, 939, 1039, 1048, 1291, 1383, 1532, 1776, 1935, 2037, 2273, 2395, 2545, 2706, 2674, 2812, 2725, 2745, 2635, 2625, 2540, 2326, 2202, 1968, 1813, 1635, 1433, 1327, 1215, 1080, 956, 982, 1013, 995, 1073, 1186, 1261, 1474, 1676, 1816]
+
+counts = []
+for t in times:
+    counter = 0
+    genmuons = decayMuons(n_muons,t)
+    
+    for i in genmuons:
+        if i.E> 2000:
+            counter += 1
+    
+    counts.append(counter)
+ 
+
+
+
+plt.figure(1)
+plt.scatter(times,counts,marker='.',label='')
+
+plt.xlabel('Time [ns]')
+plt.ylabel('Number of positrons with E>2000 MeV')
+#plt.legend()
+
+
+
+ 
+
+'''
+genmuons = decayMuons(n_muons,0.)
 
 #get information out of all muon decays
 for i in genmuons:
@@ -178,7 +207,6 @@ plt.hist(energies,bins=50,histtype='step',normed=True,label='')
 #plt.scatter(es,especN,marker='.')
 plt.xlabel('Positron energy [MeV]')
 plt.ylabel('Count [arbitrary units]')
-plt.legend()
 #plt.ylim(0,0.05)
 
 #plot positron angle spectrum
@@ -187,7 +215,6 @@ plt.hist(pangles,bins=50,histtype='step')
 #plt.scatter(angles,distN,marker='.')
 plt.xlabel('Angle from momentum direction')
 plt.ylabel('Count [arbitrary units]')
-plt.legend()
 #plt.ylim(0,0.25)
 
 plt.figure(3)
@@ -203,7 +230,7 @@ plt.hist2d(pangles, energies, (50, 50), cmap=plt.cm.jet)
 plt.xlabel('Angle from momentum direction')
 plt.ylabel('Positron energy [MeV]')
 
-
+'''
 
 plt.show()
 
