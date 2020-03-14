@@ -170,7 +170,7 @@ if option == "GM2":
     counts = []
     for t in times:
         counter = 0
-        genmuons = decayMuons(n_muons,t)
+        genmuons = decayMuons(n_muons,t,0)
         print('Generating muons for time', t)
         
         for i in genmuons:
@@ -178,10 +178,7 @@ if option == "GM2":
             if i.E> 2000:
                 counter += 1
         
-        counts.append(counter)
-        print(counter)
-     
-    
+        counts.append(counter)   
     
     
     plt.figure(1)
@@ -190,6 +187,12 @@ if option == "GM2":
     plt.ylabel('Number of positrons with E>2000 MeV')
     plt.legend()
     
+    f=open('precession.txt','w')
+    for time,count in zip(times,counts):
+        f.write(str(time)+','+str(count)+'\n')
+    f.close()
+    
+
     
 
 elif option == "EDM":
@@ -219,6 +222,11 @@ elif option == "EDM":
     
     plt.xlabel('Time [ns]')
     plt.ylabel('Average vertical angle')
+    
+    f=open('EDM.txt','w')
+    for time,angle,err in zip(times,avAngle,spreadAngle):
+        f.write(str(time)+'   '+str(angle)+'   '+ str(err)+'\n')
+    f.close()
     
 else:
 
