@@ -10,8 +10,10 @@ TODO:
 
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.integrate as spint
-
+#import scipy.integrate as spint
+from scipy.stats import norm
+import matplotlib.mlab as mlab
+from scipy.optimize import curve_fit
 
 #Crude 'mode' selection: 
 #Options:
@@ -209,14 +211,21 @@ elif option == "EDM":
         for i in genmuons:
             edmlist.append(i.vangle)
         
-        avAngle.append(np.mean(edmlist))
-        spreadAngle.append(np.std(edmlist)/np.sqrt(n_muons))
+        plt.ioff()
+        plt.figure(1)
+        n, bins, patches = plt.hist(edmlist,50,normed=True,histtype='step')
+        plt.ion()
+    
+        centers = (0.5*(bins[1:]+bins[:-1]))
+        pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[0,1])
+        
+        avAngle.append(pars[0])
+        spreadAngle.append(np.sqrt(cov[0,0]))
         print("Plotting EDM for time", t)
             
         
-    print(avAngle)
     
-    plt.figure(1)
+    plt.figure(2)
     plt.errorbar(times,avAngle,spreadAngle, marker='.',label='')
 
     
@@ -304,11 +313,27 @@ else:
     plt.colorbar()
     #plt.xlim(0.925,1.)
     
+
     #plot vertical angle distribution
     plt.figure(5)
-    plt.hist(vangles,bins=50,histtype='step')
-    plt.xlim(-2,2)
-    plt.xlabel('Vertical angle')
+    
+    n, bins, patches = plt.hist(vangles,50,normed=True,histtype='step')
+    
+    centers = (0.5*(bins[1:]+bins[:-1]))
+    pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[0,1])
+    
+    print(pars[0])
+    print(cov[0,0])
+
+
+    
+
+    #plt.hist(vangles,bins=50,histtype='step')
+    y = mlab.normpdf( bins, mu, sigma)
+    l = plt.plot(bins, y, 'r--', linewidth=2)
+
+    #plt.xlim(-2,2)
+    plt.xlabel('Vertical angle (rad)')
     plt.ylabel('Count [arbitrary units]')
     
     

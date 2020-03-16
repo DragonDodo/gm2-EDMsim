@@ -22,16 +22,10 @@ p1, success = optimize.leastsq(errfunc, p0[:], args=(t, counts))
 ndof = len(t) - len(p1)
 
 fit = fitfunc(p1,t)
-d = []
-for i,j in zip(counts,fit):
-    diff = (i-j)
-    d.append(abs(diff))
-    
-diffAv = np.mean(diff)  
 
 residuals = []
-for i,j in zip(counts,fit):
-    res = (i-j)/diffAv
+for i,j,k in zip(counts,fit,errors):
+    res = (i-j)/k
     residuals.append(res**2)
   
     
