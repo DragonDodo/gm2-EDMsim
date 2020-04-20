@@ -3,9 +3,13 @@
 
 '''
 TODO:
-    -Test EDM oscialltion
-    -Test fitting and chi-squared calcs
-    - Check impact on w_tot by EDM
+    -Add in a global timescale to generate points for 
+    - n_events rather than n points
+    - uniform time distribution across 0 - tmax
+    - then bin events based on time to make the wiggles
+    
+    so want to generate n events -- and then for the g-2 wiggle bin and cut on E, for edm bin and average. 
+    both need binning so can do that before splitting off into the two wiggles. 
 '''
 
 import numpy as np
@@ -21,14 +25,19 @@ from scipy.optimize import curve_fit
 #   'GM2' to make usual wiggle plot
 #   Blank string for single angle stationary snapshot
 
+n_events = 100000
+t_start = 0
+t_end = 30000
 
-option = "DM"
+
+
+option = "GM2"
 npoints = 1000 #number of points to plot for wiggles
 
 
 
 #MeV units
-n_muons = 10000
+#n_muons = 10000
 muonM = 105.66
 eM = 0.51 
 Emax = muonM/2
@@ -41,7 +50,8 @@ class muon:
         self.angle=sample_angle(1,eE)
         self.lifetime = 2.1969811e-6 #seconds
         self.P = np.sqrt(self.E**2-eM**2)
-        self.vangle = sample_vertical_angle(1)
+        self.vangle = sample_vertical_angle(1)        
+        self.decay_time = np.random.exponential(1/(self.lifetime*29.3))
         
         #unchanged self variables for debugging
         self.oE = self.E
@@ -179,54 +189,60 @@ def sample_vertical_angle(n):
 
 #--------------------------------------------------------
 
-def decayMuons(n,t,e):
+def decayMuons(n):
     muonlist = []
     
     for i in range(n+1):
         m = muon()
-        m.EDMShift(e) #apply EDM precession
-        m.gm2Shift(t) #apply g-2 precession        
+        m.EDMShift(m.decay_time) #apply EDM precession
+        m.gm2Shift(m.decay_time) #apply g-2 precession        
         m.boost() #boost into lab frame  
         
         muonlist.append(m)  
+        print('Generating decay',i,'of',n,',',int(i/n*100),'% done...')
     return muonlist
    
 #-------------------------------------------------------
+    
+genmuons = decayMuons(n_events)
 
-if option == "GM2":   
+nbins = 100
+bins = np.linspace(t_start,t_end,nbins)
+
+
+
+
+
+
+if option == "GM2":  
     
-   
-    times = list(np.linspace(0., 30e3, npoints))
-        
-    counts = []
-    for t in times:
-        counter = 0
-        genmuons = decayMuons(n_muons,t,0)
-        print('Generating muons for time', t)
-        
-        for i in genmuons:
-            #energy cut for wiggle plot
-            if i.E> 2000:
-                counter += 1
-                
+    high_E = []
+    
+    for i in genmuons:
+        if i.E > 2000:
+            high_E.append(i.decay_time)
             
-        
-        counts.append(counter)   
     
+    counts, edges = np.histogram(high_E,bins)
+       
+
+        
+  
+  
     
     plt.figure(1)
-    plt.scatter(times,counts,marker='.',label='')    
+    plt.scatter(bins[:-1],counts,marker='.',label='')    
     plt.xlabel('Time [ns]')
     plt.ylabel('Number of positrons with E>2000 MeV')
     plt.legend()
-    
+'''   
     f=open('precession.txt','w')
     for time,count in zip(times,counts):
         f.write(str(time)+','+str(count)+'\n')
     f.close()
     
-
-    
+'''
+'''   
 
 elif option == "EDM":
     
@@ -280,16 +296,16 @@ elif option == "EDM":
     for time,angle,err in zip(times,avAngle,spreadAngle):
         f.write(str(time)+'   '+str(angle)+'   '+ str(err)+'\n')
     f.close()
-    
-else:
+'''    
+if option == "test":
 
     energies = []
     pangles = []
     momenta = []
     vangles = []
     olda = []
-    othervan = []
-    ov = []
+    times = []
+
     
     T = 2*np.pi/1.5e-3
     
@@ -299,8 +315,10 @@ else:
     #get information out of all muon decays
     for i in genmuons:
         
-        ov.append(i.oV)
+
         vangles.append(i.vangle)
+        times.append(i.decay_time)
+        
 
         
         '''
@@ -366,8 +384,8 @@ else:
 
     #plot vertical angle distribution
     plt.figure(5)
-    minx = -2
-    maxx = 2
+    minx = -0.5
+    maxx = 0.5
     bins = np.linspace(minx,maxx,100)
     #bins = 50
 
@@ -392,5 +410,8 @@ else:
     plt.xlabel('Vertical angle [rad]')
     plt.ylabel('Count [arbitrary units]')
     #plt.legend()
+    
+    plt.figure(6)
+    plt.hist(times,bins=50,histtype='step',density=True)
 
     plt.show()
