@@ -3,13 +3,8 @@
 
 '''
 TODO:
-    -Add in a global timescale to generate points for 
-    - n_events rather than n points
-    - uniform time distribution across 0 - tmax
-    - then bin events based on time to make the wiggles
-    
-    so want to generate n events -- and then for the g-2 wiggle bin and cut on E, for edm bin and average. 
-    both need binning so can do that before splitting off into the two wiggles. 
+    -There's some degeneracy with binning, don't need to do it twice...
+    - try out standard errors vs the fit errors and check the fit
 '''
 
 import numpy as np
@@ -25,22 +20,20 @@ from scipy.optimize import curve_fit
 #   'GM2' to make usual wiggle plot
 #   Blank string for single angle stationary snapshot
 
-n_events = 100000
+n_events = 1000000
 t_start = 0
 t_end = 30000
 
 
 
-option = "GM2"
-npoints = 1000 #number of points to plot for wiggles
-
+option = "EDM"
 
 
 #MeV units
-#n_muons = 10000
 muonM = 105.66
 eM = 0.51 
 Emax = muonM/2
+gamma = 29.3 #'magic' gamma value for g-2
 
 class muon:
     #class to define a muon decay object
@@ -51,7 +44,8 @@ class muon:
         self.lifetime = 2.1969811e-6 #seconds
         self.P = np.sqrt(self.E**2-eM**2)
         self.vangle = sample_vertical_angle(1)        
-        self.decay_time = np.random.exponential(1/(self.lifetime*29.3))
+        #self.decay_time = np.random.exponential(1/(self.lifetime*gamma))
+        self.decay_time = np.random.uniform(t_start, t_end)
         
         #unchanged self variables for debugging
         self.oE = self.E
@@ -62,8 +56,7 @@ class muon:
     def boost(self):
         
         #method to boost the muon into the detector frame  
-        muonM = 105.66
-        gamma = 29.3 #'magic' gamma value for g-2
+        muonM = 105.66        
         mu_momentum = 3.094e3 #3.094 GeV/c
         mu_v = -mu_momentum/(gamma*muonM) #-tive because boosting back into lab frame
         
@@ -199,7 +192,7 @@ def decayMuons(n):
         m.boost() #boost into lab frame  
         
         muonlist.append(m)  
-        print('Generating decay',i,'of',n,',',int(i/n*100),'% done...')
+        #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...')
     return muonlist
    
 #-------------------------------------------------------
@@ -224,79 +217,69 @@ if option == "GM2":
             
     
     counts, edges = np.histogram(high_E,bins)
-       
-
-        
-  
-  
+    
+    uncert = np.sqrt(counts)
     
     plt.figure(1)
-    plt.scatter(bins[:-1],counts,marker='.',label='')    
+    
+    plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
+    plt.scatter(bins[:-1],counts,marker='.',label='',color='k')    
+    
     plt.xlabel('Time [ns]')
     plt.ylabel('Number of positrons with E>2000 MeV')
     plt.legend()
-'''   
-    f=open('precession.txt','w')
-    for time,count in zip(times,counts):
-        f.write(str(time)+','+str(count)+'\n')
+    
+    f=open('GM2.txt','w')
+    for time,count,err in zip(bins[:-1],counts,uncert):
+        f.write(str(time)+','+str(count)+','+str(err)+'\n')
     f.close()
     
-'''
-'''   
 
 elif option == "EDM":
     
-    times = list(np.linspace(0., 100e3, npoints))
-    
-    avAngle = []
+    #bin based on time
+    #for each bin plot and fit for the vangle as before
+    vangles = []
+    times = []
+    avAngle= []
     spreadAngle = []
-    counts = []
     
-    w=1.5e-3
+    for i in genmuons:
+        times.append(i.decay_time)
+        vangles.append(i.vangle)       
     
-    for t in times:
-        counter = 0
-        edmlist = []
-        genmuons = decayMuons(n_muons,t,t)
-        
-        
-        for i in genmuons:
-            edmlist.append(i.vangle)
-            
-            
+    digitized = np.digitize(times, bins)
+    vangles = np.array(vangles)   
+    
+    for i in range(1,len(bins)):
+        bin_contents = vangles[digitized==i]
         
         b = np.linspace(-np.pi,np.pi,2000)        
-        n, bins = np.histogram(edmlist,b,normed=True)
+        n, fitbins = np.histogram(bin_contents,b,normed=True)
         
         centers = (0.5*(b[1:]+b[:-1]))
         pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
                
         m = pars[0]
-        e = np.sqrt(cov[0,0])        
-        
-        #m = np.mean(edmlist)
-        s = np.std(edmlist)/np.sqrt(n_muons)
-
+        e = np.sqrt(cov[0,0])          
         
         avAngle.append(m)
-        spreadAngle.append(e)     
-        
+        spreadAngle.append(e)
+    
 
-        print("Plotting EDM for time", t)
-     
-   
         
     plt.figure(2)
-    plt.errorbar(times,avAngle,spreadAngle, marker='.',label='')    
+    plt.errorbar(bins[:-1],avAngle,spreadAngle, marker='.',label='')    
     plt.xlabel('Time [ns]')
     plt.ylabel('Average vertical angle')   
     
     
     f=open('EDM.txt','w')
-    for time,angle,err in zip(times,avAngle,spreadAngle):
-        f.write(str(time)+'   '+str(angle)+'   '+ str(err)+'\n')
+    for time,angle,err in zip(bins[:-1],avAngle,spreadAngle):
+        f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
-'''    
+
+
 if option == "test":
 
     energies = []
@@ -309,7 +292,7 @@ if option == "test":
     
     T = 2*np.pi/1.5e-3
     
-    genmuons = decayMuons(n_muons,0,T/4)
+
             
     
     #get information out of all muon decays
