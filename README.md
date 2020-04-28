@@ -6,7 +6,7 @@ Python simulation code for g-2 EDM studies, without the faff of running the offi
 1. Option: main running mode. Two options:
       - GM2: plots a g-2 wiggle plot time histogram using the energy cut method
       - EDM: plots the average vertical angle as a function of time. 
-     (- test: used for a single time snapshot, good for debugging)
+      - test: used for a single time snapshot, good for debugging
 2. n_events: the total number of events to generate. 
 3. t_start and t_end: define the time range over which to generate events. 
 
