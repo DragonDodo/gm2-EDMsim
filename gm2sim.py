@@ -3,31 +3,25 @@
 
 '''
 TODO:
-    -There's some degeneracy with binning, don't need to do it twice...
-    - try out standard errors vs the fit errors and check the fit
+    -...
 '''
 
 import numpy as np
 import matplotlib.pyplot as plt
 #import scipy.integrate as spint
-from scipy.stats import norm #, cauchy
+from scipy.stats import norm
 from scipy.optimize import curve_fit
-
-
-#Crude 'mode' selection: 
-#Options:
-#   'EDM' to make vertical angle oscialltion plots
-#   'GM2' to make usual wiggle plot
-#   Blank string for single angle stationary snapshot
 
 n_events = 1000000
 t_start = 0
 t_end = 30000
 
-
-
+#Crude 'mode' selection: 
+#Options:
+#   'EDM' to make vertical angle oscialltion plots
+#   'GM2' to make usual wiggle plot
+#   'test' for anything else. 
 option = "EDM"
-
 
 #MeV units
 muonM = 105.66
@@ -44,8 +38,8 @@ class muon:
         self.lifetime = 2.1969811e-6 #seconds
         self.P = np.sqrt(self.E**2-eM**2)
         self.vangle = sample_vertical_angle(1)        
-        #self.decay_time = np.random.exponential(1/(self.lifetime*gamma))
-        self.decay_time = np.random.uniform(t_start, t_end)
+        self.decay_time = np.random.exponential(1/(self.lifetime*gamma))
+        #self.decay_time = np.random.uniform(t_start, t_end)
         
         #unchanged self variables for debugging
         self.oE = self.E
@@ -97,11 +91,19 @@ class muon:
         phase = np.pi/2# EDM is pi/2 out of phase with g-2 oscillation        
         dphi = A*np.cos(wEDM*t-phase) 
         
-        #dphi=t*wEDM
+
+        theta  = self.angle
+        phi  = self.vangle
+
+        tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
+        svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+
+        self.angle = np.arctan(tangle)
+        self.vangle = np.arcsin(svangle)
         
-        self.vangle = self.vangle + dphi
-
-
+    
+        self.oV = self.vangle
+        
 #-------------------------------------------------------
 #Define the energy distribution of muon decay and sample
 
@@ -192,22 +194,22 @@ def decayMuons(n):
         m.boost() #boost into lab frame  
         
         muonlist.append(m)  
-        #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...')
+        #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...', end='')
     return muonlist
    
 #-------------------------------------------------------
     
 genmuons = decayMuons(n_events)
 
+
+T = 2*np.pi/1.5e-3
+
 nbins = 100
-bins = np.linspace(t_start,t_end,nbins)
-
-
-
 
 
 
 if option == "GM2":  
+    bins = np.linspace(t_start,t_end,nbins)
     
     high_E = []
     
@@ -216,12 +218,10 @@ if option == "GM2":
             high_E.append(i.decay_time)
             
     
-    counts, edges = np.histogram(high_E,bins)
-    
+    counts, edges = np.histogram(high_E,bins)    
     uncert = np.sqrt(counts)
     
-    plt.figure(1)
-    
+    plt.figure(1)    
     plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
     plt.scatter(bins[:-1],counts,marker='.',label='',color='k')    
     
@@ -236,40 +236,59 @@ if option == "GM2":
     
 
 elif option == "EDM":
-    
-    #bin based on time
-    #for each bin plot and fit for the vangle as before
+    bins = np.linspace(0,T,nbins)
+
     vangles = []
     times = []
     avAngle= []
     spreadAngle = []
+    fit1 =[]
+    fit2 = []   
+
     
     for i in genmuons:
-        times.append(i.decay_time)
-        vangles.append(i.vangle)       
+        modtime = i.decay_time%T
+        times.append(modtime)
+        vangles.append(i.vangle)   
     
     digitized = np.digitize(times, bins)
     vangles = np.array(vangles)   
-    
+
     for i in range(1,len(bins)):
         bin_contents = vangles[digitized==i]
+
         
-        b = np.linspace(-np.pi,np.pi,2000)        
-        n, fitbins = np.histogram(bin_contents,b,normed=True)
+        stmean = np.mean(bin_contents)
+        std = np.std(bin_contents)
+        
+        b = np.linspace(stmean-1*std,stmean+1*std,500)   
+        #b = np.linspace(-1.5,1.5,2000) 
+        n, fitbins = np.histogram(bin_contents,b,density=True)      
         
         centers = (0.5*(b[1:]+b[:-1]))
         pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
                
         m = pars[0]
-        e = np.sqrt(cov[0,0])          
+        e = np.sqrt(cov[0,0])    
         
-        avAngle.append(m)
-        spreadAngle.append(e)
-    
+        stmean = np.mean(bin_contents)
+        stderr = np.std(bin_contents)/np.sqrt(len(bin_contents))
+        
+        
+        avAngle.append(stmean)
+        spreadAngle.append(stderr)
+        fit1.append(m)
+        fit2.append(e)
+        '''        
+        plt.hist(bin_contents,b,histtype='step',normed=True)
+        plt.xlabel('Phi angle post-boost')
+        plt.plot(b,norm.pdf(b,m,pars[1]),label = 'fit')
+        plt.legend()
+        '''
 
-        
+    
     plt.figure(2)
-    plt.errorbar(bins[:-1],avAngle,spreadAngle, marker='.',label='')    
+    plt.errorbar(bins[:-1],avAngle,spreadAngle, marker='.')     
     plt.xlabel('Time [ns]')
     plt.ylabel('Average vertical angle')   
     
@@ -278,7 +297,7 @@ elif option == "EDM":
     for time,angle,err in zip(bins[:-1],avAngle,spreadAngle):
         f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
-
+    
 
 if option == "test":
 
@@ -384,10 +403,11 @@ if option == "test":
     
     x = np.linspace(minx,maxx,200)
     
-    plt.hist(vangles,bins=bins,histtype='step',density=True)
+    plt.hist(vangles,bins=bins,histtype='step',density=True,label="Using tan and gamma")
+    plt.legend()
     
 
-    plt.plot(x,norm.pdf(x,pars[0],pars[1]))
+    #plt.plot(x,norm.pdf(x,pars[0],pars[1]))
 
     #plt.xlim(-0.5,0.5)
     plt.xlabel('Vertical angle [rad]')

@@ -1,0 +1,58 @@
+
+# g-2 plot stylesheet, for consistency across ROOT/pyroot/matplotlib plots in papers
+# Based heavily on the ATLAS style in mplhep (https://github.com/scikit-hep/mplhep)
+# This can't do everything! Add list of stuff here later maybe...
+
+# font
+font.family: sans-serif
+font.sans-serif: helvetica, Helvetica, Arial, Nimbus Sans L, Mukti Narrow, FreeSans
+font.size: 18
+mathtext.fontset: stixsans
+mathtext.default: rm
+pdf.fonttype : 42
+
+# figure layout
+figure.figsize: 8.75, 5.92
+figure.facecolor: white
+figure.subplot.bottom: 0.16
+figure.subplot.top: 0.93
+figure.subplot.left: 0.16
+figure.subplot.right: 0.95
+
+# axes
+axes.labelsize: 20
+axes.labelpad: 30 
+axes.autolimit_mode : data
+xtick.top: True
+xtick.labelsize: 19
+xtick.major.size: 10
+xtick.minor.size: 5
+xtick.direction: in
+xtick.minor.visible: True
+ytick.right: True
+ytick.labelsize: 19
+ytick.major.size: 14
+ytick.minor.size: 7
+ytick.direction: in
+ytick.minor.visible: True
+lines.markersize: 8
+
+# legend
+legend.numpoints: 1
+legend.fontsize: 18
+legend.labelspacing: 0.3
+legend.frameon: False
+
+# lines
+lines.linewidth: 2
+
+# plots
+errorbar.capsize : 0
+
+#savefig
+savefig.dpi : 300
+
+
+
+
+
