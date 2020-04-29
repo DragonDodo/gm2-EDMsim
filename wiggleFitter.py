@@ -61,7 +61,7 @@ def amplitude_to_tilt(a):
 
 
 #data here
-tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2.txt",unpack=True,delimiter=','))
+tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2_10mil.txt",unpack=True,delimiter=','))
 t,counts,errors = list(np.loadtxt("EDM.txt",unpack=True,delimiter=','))
 
 
@@ -71,10 +71,12 @@ p0gm2 = [100,1e-6*1e9,100,1.5e-3,1]
 p1gm2, errgm2 = fit_leastsq(p0gm2, tgm2, gm2counts, fitfuncgm2) 
 chigm2 = chiSquare(fitfuncgm2,tgm2,gm2counts,p1gm2,gm2errors)[0]
 
+w = p1gm2[3]
+phi = p1gm2[4]-np.pi/2
 
 # EDM wiggle fit with a shifted sine
-fitfuncedm = lambda p, x: p[0]*np.sin(p[1]*x+p[2]) + p[3] 
-p0edm = [5.8e-3,1.45e-3, 0,0] 
+fitfuncedm = lambda p, x: p[0]*np.sin(w*x+phi) + p[1] 
+p0edm = [5.8e-3, 0] 
 p1edm, erredm = fit_leastsq(p0edm,t,counts,fitfuncedm)
 chiedm = chiSquare(fitfuncedm,t,counts,p1edm,errors)[0]
 
@@ -87,6 +89,10 @@ limitGaus = norm.pdf(xrange,0,fitTilterr)
 
 interval = norm.interval(0.95,loc=0,scale=fitTilterr)
 #limit = interval[1]
+
+f=open('limit.txt','a')
+f.write(str(erredm[0])+','+ str(interval[1])+'\n')
+f.close()
 
 plt.figure(1)
 time = np.linspace(tgm2.min(), tgm2.max(), 1000)
@@ -114,7 +120,7 @@ plt.gca().ticklabel_format(style='sci', scilimits=(0,1), axis='y')
 plt.xlabel("Time % g-2 period [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
 plt.ylabel("Average vertical angle [rad]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0);
 plt.text(4000,0.00085,r'$\chi^{2}/dof: %.2f$' %chiedm,horizontalalignment='right')
-plt.text(4000,0.00070,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e3),horizontalalignment='right')
+plt.text(4000,0.00070,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e5),horizontalalignment='right')
 
 plt.figure(3)
 plt.plot(xrange,limitGaus,label = 'Probability gaussian')
