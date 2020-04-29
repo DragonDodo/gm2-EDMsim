@@ -7,7 +7,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
-
+from scipy.stats import norm
 
 gamma = 29.3 #'magic' gamma value for g-2
 
@@ -53,6 +53,12 @@ def fit_leastsq(p0, datax, datay, function):
     perr_leastsq = np.array(error) 
     return pfit_leastsq, perr_leastsq 
 
+def amplitude_to_tilt(a):
+    consts = 9.158e15       
+    d_u = np.arctan(gamma*np.tan(a/consts))
+    return d_u
+
+
 
 #data here
 tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2.txt",unpack=True,delimiter=','))
@@ -72,6 +78,15 @@ p0edm = [5.8e-3,1.45e-3, 0,0]
 p1edm, erredm = fit_leastsq(p0edm,t,counts,fitfuncedm)
 chiedm = chiSquare(fitfuncedm,t,counts,p1edm,errors)[0]
 
+#limit setting stuff 
+fitTilt = amplitude_to_tilt(p1edm[0])
+fitTilterr = amplitude_to_tilt(erredm[0])
+
+xrange = np.linspace(-1e-18,1e-18,1000)
+limitGaus = norm.pdf(xrange,0,fitTilterr)
+
+interval = norm.interval(0.95,loc=0,scale=fitTilterr)
+#limit = interval[1]
 
 plt.figure(1)
 time = np.linspace(tgm2.min(), tgm2.max(), 1000)
@@ -94,11 +109,22 @@ plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2')
 plt.scatter(t,counts,marker='.', color='k')
 plt.plot(time,fitfuncedm(p1edm, time),color='r')
 plt.xlim(0,max(t))
+plt.ylim(-0.001,0.001)
+plt.gca().ticklabel_format(style='sci', scilimits=(0,1), axis='y')
 plt.xlabel("Time % g-2 period [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
 plt.ylabel("Average vertical angle [rad]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0);
-plt.text(4000,0.0034,r'$\chi^{2}/dof: %.2f$' %chiedm,horizontalalignment='right')
-plt.text(4000,0.004,r'$Amplitude: (%.2f \pm %.2f) \times10^{-3} rad$' %(p1edm[0]*1e3,erredm[0]*1e3),horizontalalignment='right')
+plt.text(4000,0.00085,r'$\chi^{2}/dof: %.2f$' %chiedm,horizontalalignment='right')
+plt.text(4000,0.00070,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e3),horizontalalignment='right')
 
+plt.figure(3)
+plt.plot(xrange,limitGaus,label = 'Probability gaussian')
+plt.ylim(bottom=0)
+plt.xlabel("EDM value [e cm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
+plt.axvline(interval[0],color='#d3d3d3',linestyle='--', label='95% CL')
+plt.axvline(interval[1],color='#d3d3d3',linestyle='--')
+plt.text(max(xrange),max(limitGaus)*0.95,r'$|d_{u}|\ < %.2f \times 10^{-19} e\ cm$' %(interval[1]*1e19),horizontalalignment='right')
+plt.legend(loc='upper left')
 
 plt.show()
 
