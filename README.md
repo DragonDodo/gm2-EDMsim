@@ -4,11 +4,13 @@ Python simulation code for g-2 EDM studies, without the faff of running the offi
 
 # Main options: 
 1. Option: main running mode. Two options:
-      - GM2: dataset binned in time for g-2 precession with an energy cut
-      - EDM: data binned in time for EDM oscillation (mean vertical angle method)
+      - MCgen: generates events according to an exponential time distribution, bins counts for both g-2 wiggle with an energy cut and average angle modulo the g-2 period for EDM analysis.
       - test: used for a single time snapshot, good for debugging
 2. n_events: the total number of events to generate. 
 3. t_start and t_end: define the time range over which to generate events. 
+4. n_bins: the number of time bins to use. 
+
+The n_events and n_bins have a tradeoff where each bin need to have a good number of events in to give sensible results. 
 
 # WiggleFitter.py
 
