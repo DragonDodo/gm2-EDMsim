@@ -1,27 +1,27 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 
-'''
-TODO:
-    -...
-'''
-
 import numpy as np
 import matplotlib.pyplot as plt
 #import scipy.integrate as spint
 from scipy.stats import norm
 from scipy.optimize import curve_fit
+import time as timestamp
 
-n_events = 1000000
-t_start = 0
-t_end = 30000
+#--------------------------
+#Options area
+
+n_events = 10000000 #number of events to generate
+t_start = 0 #start time (ns)
+t_end = 30000 #end time (ns)
+nbins = 100 #number of time bins to use
 
 #Crude 'mode' selection: 
 #Options:
-#   'EDM' to make vertical angle oscialltion plots
-#   'GM2' to make usual wiggle plot
-#   'test' for anything else. 
-option = "EDM"
+#   'MCgen' to generate muon decays across the time range
+#   'test' for a single time snapshot
+option = "MCgen"
+#--------------------------
 
 #MeV units
 muonM = 105.66
@@ -30,7 +30,8 @@ Emax = muonM/2
 gamma = 29.3 #'magic' gamma value for g-2
 
 class muon:
-    #class to define a muon decay object
+    #class to define a muon decay 
+    
     def __init__(self):
         eE = sample_muE(1)
         self.E = eE
@@ -47,9 +48,9 @@ class muon:
         self.oP = self.P
         self.oV = self.vangle
     
-    def boost(self):
+    def boost(self):        
+        #method to boost the muon into the detector frame 
         
-        #method to boost the muon into the detector frame  
         muonM = 105.66        
         mu_momentum = 3.094e3 #3.094 GeV/c
         mu_v = -mu_momentum/(gamma*muonM) #-tive because boosting back into lab frame
@@ -73,7 +74,6 @@ class muon:
     #IMPORTANT: must do this before boosting!
         w = 1.5e-3
         shift = w*t
-        #shift = t
         self.angle=self.angle+shift
         self.oA = self.angle 
         
@@ -84,9 +84,10 @@ class muon:
         wEDM = 1.5e-3 # g-2 freq
         
         d_u = 100*1.9e-19 #100BNL
-        consts = 8.9e15
+        d_u = 1.76e-19
+        consts = 9.158e15
         
-        A = d_u*consts
+        A = consts*d_u
         #A = 1
         phase = np.pi/2# EDM is pi/2 out of phase with g-2 oscillation        
         dphi = A*np.cos(wEDM*t-phase) 
@@ -103,6 +104,14 @@ class muon:
         
     
         self.oV = self.vangle
+        
+        
+    def smear(self,uncert):
+    #method to simulate the tracker resolution
+    
+        noise = np.random.normal(0,uncert) #assume gaussian uncert
+        self.vangle = self.vangle + noise
+
         
 #-------------------------------------------------------
 #Define the energy distribution of muon decay and sample
@@ -139,8 +148,7 @@ def angleSpectrum(E,theta,Pu=1):
     x = E/Emax
 
     a = (Pu*np.cos(theta))*(1-2*x)
-    b = 3-2*x    
-    # 1 + 1/3cos(theta)
+    b = 3-2*x
     return x*x*(b-a)
 
 def sample_angle(n,E):
@@ -192,77 +200,54 @@ def decayMuons(n):
         m.EDMShift(m.decay_time) #apply EDM precession
         m.gm2Shift(m.decay_time) #apply g-2 precession        
         m.boost() #boost into lab frame  
-        
+        m.smear(0) #uniform tracker resolution
         muonlist.append(m)  
         #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...', end='')
     return muonlist
    
 #-------------------------------------------------------
-    
+timestr = timestamp.strftime("%Y%m%d-%H%M%S")
+
+#generate n muon decay events with previously defined time distribution
 genmuons = decayMuons(n_events)
 
+if option == "MCgen":
 
-T = 2*np.pi/1.5e-3
-
-nbins = 100
-
-
-
-if option == "GM2":  
     bins = np.linspace(t_start,t_end,nbins)
+    T = 2*np.pi/1.5e-3
+    modbins = np.linspace(0,T,nbins)
     
     high_E = []
-    
-    for i in genmuons:
-        if i.E > 2000:
-            high_E.append(i.decay_time)
-            
-    
-    counts, edges = np.histogram(high_E,bins)    
-    uncert = np.sqrt(counts)
-    
-    plt.figure(1)    
-    plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
-    plt.scatter(bins[:-1],counts,marker='.',label='',color='k')    
-    
-    plt.xlabel('Time [ns]')
-    plt.ylabel('Number of positrons with E>2000 MeV')
-    plt.legend()
-    
-    f=open('GM2.txt','w')
-    for time,count,err in zip(bins[:-1],counts,uncert):
-        f.write(str(time)+','+str(count)+','+str(err)+'\n')
-    f.close()
-    
-
-elif option == "EDM":
-    bins = np.linspace(0,T,nbins)
-
     vangles = []
     times = []
     avAngle= []
     spreadAngle = []
     fit1 =[]
-    fit2 = []   
-
+    fit2 = []  
     
-    for i in genmuons:
+    for i in genmuons: #g-2 energy cut
+        if i.E > 2000:
+            high_E.append(i.decay_time)
+        
         modtime = i.decay_time%T
         times.append(modtime)
-        vangles.append(i.vangle)   
+        vangles.append(i.vangle) #average vertical angle for EDM    
     
-    digitized = np.digitize(times, bins)
-    vangles = np.array(vangles)   
-
-    for i in range(1,len(bins)):
-        bin_contents = vangles[digitized==i]
-
+    #bin the counts/angles into time bins
+    counts, edges = np.histogram(high_E,bins)    
+    uncert = np.sqrt(counts)
+    
+    digitized = np.digitize(times, modbins)
+    vangles = np.array(vangles)
+    
+    for i in range(1,len(modbins)):
+        bin_contents = vangles[digitized==i]    
         
         stmean = np.mean(bin_contents)
         std = np.std(bin_contents)
         
+        #fit gaussian for average vertical angle and error
         b = np.linspace(stmean-1*std,stmean+1*std,500)   
-        #b = np.linspace(-1.5,1.5,2000) 
         n, fitbins = np.histogram(bin_contents,b,density=True)      
         
         centers = (0.5*(b[1:]+b[:-1]))
@@ -285,21 +270,38 @@ elif option == "EDM":
         plt.plot(b,norm.pdf(b,m,pars[1]),label = 'fit')
         plt.legend()
         '''
-
-    
-    plt.figure(2)
-    plt.errorbar(bins[:-1],avAngle,spreadAngle, marker='.')     
+        
+     
+    #Plot wiggles for checking outputs: not nice plots, use the plotting code!
+    plt.figure(1)    
+    plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
+    plt.scatter(bins[:-1],counts,marker='.',label='',color='k')       
     plt.xlabel('Time [ns]')
-    plt.ylabel('Average vertical angle')   
+    plt.ylabel('Number of positrons with E>2000 MeV')
+    plt.legend()    
+        
+    plt.figure(2)
+    plt.errorbar(modbins[:-1],avAngle,spreadAngle, marker='.')     
+    plt.xlabel('Time [ns]')
+    plt.ylabel('Average vertical angle')       
     
+    name_stampG = str('GM2-')+str(timestr)
+    name_stampE = str('delEDM-')+str(timestr)
     
-    f=open('EDM.txt','w')
-    for time,angle,err in zip(bins[:-1],avAngle,spreadAngle):
+    f=open('%s.txt' %name_stampG,'w')
+    for time,count,err in zip(bins[:-1],counts,uncert):
+        f.write(str(time)+','+str(count)+','+str(err)+'\n')
+    f.close()    
+    
+    f=open('%s.txt' %name_stampE,'w')
+    for time,angle,err in zip(modbins[:-1],fit1,fit2):
         f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
-    
-
+        
 if option == "test":
+    
+    #this area is more of a sandbox, good for checking distributions
+    #it plots things but doesn't save any data 
 
     energies = []
     pangles = []
@@ -309,10 +311,7 @@ if option == "test":
     times = []
 
     
-    T = 2*np.pi/1.5e-3
-    
-
-            
+    T = 2*np.pi/1.5e-3           
     
     #get information out of all muon decays
     for i in genmuons:
@@ -403,16 +402,16 @@ if option == "test":
     
     x = np.linspace(minx,maxx,200)
     
-    plt.hist(vangles,bins=bins,histtype='step',density=True,label="Using tan and gamma")
+    plt.hist(vangles,bins=bins,histtype='step',label="10 mrad smear")
     plt.legend()
     
 
     #plt.plot(x,norm.pdf(x,pars[0],pars[1]))
 
     #plt.xlim(-0.5,0.5)
-    plt.xlabel('Vertical angle [rad]')
-    plt.ylabel('Count [arbitrary units]')
-    #plt.legend()
+    plt.xlabel("Vertical angle [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0, labelpad = 40)
+    plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
+
     
     plt.figure(6)
     plt.hist(times,bins=50,histtype='step',density=True)
