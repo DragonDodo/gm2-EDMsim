@@ -10,7 +10,7 @@ Python simulation code for g-2 EDM studies, without the faff of running the offi
 3. t_start and t_end: define the time range over which to generate events. 
 4. n_bins: the number of time bins to use. 
 
-The n_events and n_bins have a tradeoff where each bin need to have a good number of events in to give sensible results. 
+The n_events and n_bins have the usual tradeoff for good statistics per bin. 
 
 # WiggleFitter.py
 
