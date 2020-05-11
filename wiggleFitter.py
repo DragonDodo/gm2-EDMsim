@@ -13,7 +13,6 @@ gamma = 29.3 #'magic' gamma value for g-2
 
 #make plots in g-2 style
 plt.style.use('gm2.mplstyle')
-plt.rcParams['axes.unicode_minus'] = False #hacky fix for fonts not having minus signs
 plt.ion()
 
 
@@ -61,7 +60,7 @@ def amplitude_to_tilt(a):
 
 
 #data here
-tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2_10mil.txt",unpack=True,delimiter=','))
+tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2.txt",unpack=True,delimiter=','))
 t,counts,errors = list(np.loadtxt("EDM.txt",unpack=True,delimiter=','))
 
 
@@ -75,8 +74,8 @@ w = p1gm2[3]
 phi = p1gm2[4]-np.pi/2
 
 # EDM wiggle fit with a shifted sine
-fitfuncedm = lambda p, x: p[0]*np.sin(w*x+phi) + p[1] 
-p0edm = [5.8e-3, 0] 
+fitfuncedm = lambda p, x: p[0]*np.sin(w*x+phi)
+p0edm = [0] 
 p1edm, erredm = fit_leastsq(p0edm,t,counts,fitfuncedm)
 chiedm = chiSquare(fitfuncedm,t,counts,p1edm,errors)[0]
 
@@ -90,9 +89,7 @@ limitGaus = norm.pdf(xrange,0,fitTilterr)
 interval = norm.interval(0.95,loc=0,scale=fitTilterr)
 #limit = interval[1]
 
-f=open('limit.txt','a')
-f.write(str(erredm[0])+','+ str(interval[1])+'\n')
-f.close()
+
 
 plt.figure(1)
 time = np.linspace(tgm2.min(), tgm2.max(), 1000)
@@ -100,12 +97,12 @@ plt.fill_between(tgm2,gm2counts-gm2errors,gm2counts+gm2errors,alpha=0.7,color='#
 plt.scatter(tgm2,gm2counts,marker='.', color='k')
 plt.plot(time,fitfuncgm2(p1gm2, time),color='r')
 plt.xlabel("Time [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
-plt.ylabel("Count with E>2000 MeV/300ns",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0)
+plt.ylabel("Count with E>2000 MeV /300ns",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
 plt.text(30000,3800,r'$\chi^{2}/dof: %.2f$' %chigm2,horizontalalignment='right')
 plt.text(30000,3500,r'$N_{0}: (%.2f \pm %.2f) \times10^{3}$' %(p1gm2[0]*1e-3,errgm2[0]*1e-3),horizontalalignment='right')
 plt.text(30000,3200,r'$\tau: (%.2f \pm %.2f) \times10^{2} ns$' %(p1gm2[1]*1e-2,errgm2[1]*1e-2),horizontalalignment='right')
-plt.text(30000,2900,r'$A: %.2f \pm %.3f$' %(p1gm2[2],errgm2[2]),horizontalalignment='right')
-plt.text(30000,2600,r'$\omega: (%.2f \pm %.3f) \times10^{-3} ns^{-1}$' %(p1gm2[3]*1e3,errgm2[3]*1e3),horizontalalignment='right')
+plt.text(30000,2900,r'$A: %.3f \pm %.3f$' %(p1gm2[2],errgm2[2]),horizontalalignment='right')
+plt.text(30000,2600,r'$\omega: (%.3f \pm %.3f) \times10^{-3} ns^{-1}$' %(p1gm2[3]*1e3,errgm2[3]*1e3),horizontalalignment='right')
 plt.text(30000,2300,r'$\phi: %.2f \pm %.2f$' %(p1gm2[4],errgm2[4]),horizontalalignment='right')
 
 
@@ -115,17 +112,17 @@ plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2')
 plt.scatter(t,counts,marker='.', color='k')
 plt.plot(time,fitfuncedm(p1edm, time),color='r')
 plt.xlim(0,max(t))
-plt.ylim(-0.001,0.001)
+#plt.ylim(top=0.8e-3)
 plt.gca().ticklabel_format(style='sci', scilimits=(0,1), axis='y')
 plt.xlabel("Time % g-2 period [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
-plt.ylabel("Average vertical angle [rad]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0);
-plt.text(4000,0.00085,r'$\chi^{2}/dof: %.2f$' %chiedm,horizontalalignment='right')
-plt.text(4000,0.00070,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e5),horizontalalignment='right')
+plt.ylabel("Average vertical angle [rad]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20);
+plt.text(4000,0.7e-3,r'$\chi^{2}/dof: %.2f$' %(chiedm),horizontalalignment='right')
+plt.text(4000,0.6e-3,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e5),horizontalalignment='right')
 
 plt.figure(3)
 plt.plot(xrange,limitGaus,label = 'Probability gaussian')
 plt.ylim(bottom=0)
-plt.xlabel("EDM value [e cm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+plt.xlabel("EDM value [e cm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0,labelpad = 40)
 plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
 plt.axvline(interval[0],color='#d3d3d3',linestyle='--', label='95% CL')
 plt.axvline(interval[1],color='#d3d3d3',linestyle='--')
