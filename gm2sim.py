@@ -36,10 +36,10 @@ class muon:
         eE = sample_muE(1)
         self.E = eE
         self.angle=sample_angle(1,eE)
-        self.lifetime = 2.1969811e-6 #seconds
+        self.lifetime = 2.1969811e-6*1e9 #in ns
         self.P = np.sqrt(self.E**2-eM**2)
         self.vangle = sample_vertical_angle(1)        
-        self.decay_time = np.random.exponential(1/(self.lifetime*gamma))
+        self.decay_time = np.random.exponential(self.lifetime*gamma)
         #self.decay_time = np.random.uniform(t_start, t_end)
         
         #unchanged self variables for debugging
