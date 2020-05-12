@@ -279,7 +279,8 @@ if option == "MCgen":
     plt.xlabel('Time [ns]')
     plt.ylabel('Number of positrons with E>2000 MeV')
     plt.legend()    
-        
+       
+    #whether you use mean/std or fit results depends on stats - fit won't work with empty bins    
     plt.figure(2)
     plt.errorbar(modbins[:-1],avAngle,spreadAngle, marker='.')     
     plt.xlabel('Time [ns]')
