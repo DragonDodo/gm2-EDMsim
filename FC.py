@@ -7,6 +7,8 @@ from numpy import linspace
 from scipy.stats import norm
 
 def FC_band(x_bins,mu_bins,width,sig):
+    #Function to calculate the x-values of the feldman-cousins interval
+    
     #x_bins - range of x to scan over
     #width - standard deviation of the gaussian
     #sig - desired significance level 
@@ -14,6 +16,7 @@ def FC_band(x_bins,mu_bins,width,sig):
     print('Calculating band...')
     
     def Rscan(bins,val):
+        #function to scan for a single mu value for all x
         xwidth = (max(bins)-min(bins))/len(bins)
         Rs = []          
     
@@ -64,6 +67,7 @@ def FC_band(x_bins,mu_bins,width,sig):
 
 
 def find_FC_limits(band,x_bins,mu_bins,testval): 
+    #Function to convert the band into limits on x
     print('Setting limits...')
     
     def limscan(xs,mu_bins,testx):
@@ -95,6 +99,7 @@ def find_FC_limits(band,x_bins,mu_bins,testval):
 
 
 def FC_limit(x,sigma,x_bins=linspace(-10,10,400),mu_bins=linspace(0,8,100),alpha=0.9):
+    #Helper function to collect it all together and scale the output 
     testx = x/sigma
     
     if testx > max(mu_bins):

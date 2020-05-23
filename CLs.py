@@ -7,7 +7,7 @@
 from scipy.stats import norm
 
 def pVal(mean,sigma,x):
-    #functional shorthand to calc p-value
+    #functional shorthand to calculate p-value
     p = norm.cdf(x,mean,sigma)
     return p
 
