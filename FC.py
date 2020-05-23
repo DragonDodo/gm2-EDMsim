@@ -3,14 +3,10 @@
 
 #FC implementation
 
-import numpy as np
-import matplotlib.pyplot as plt
+from numpy import linspace
 from scipy.stats import norm
 
-plt.style.use('gm2.mplstyle')
-plt.ion()
-
-def FC(x_bins,mu_bins,width,sig):
+def FC_band(x_bins,mu_bins,width,sig):
     #x_bins - range of x to scan over
     #width - standard deviation of the gaussian
     #sig - desired significance level 
@@ -98,76 +94,81 @@ def find_FC_limits(band,x_bins,mu_bins,testval):
     return downlim,uplim
 
 
-def FC_limit(x,sigma,x_bins=np.linspace(-10,10,400),mu_bins=np.linspace(0,8,100),alpha=0.9):
+def FC_limit(x,sigma,x_bins=linspace(-10,10,400),mu_bins=linspace(0,8,100),alpha=0.9):
     testx = x/sigma
     
     if testx > max(mu_bins):
         raise ValueError('x/sigma not in band, scan for wider mean value!')
         
-    rough = FC(x_bins,mu_bins,sigma,alpha)
+    rough = FC_band(x_bins,mu_bins,sigma,alpha)
     lims = find_FC_limits(rough,x_bins,mu_bins,testx) 
     
     print('Limits per sigma:',lims[0],lims[1])
     print('Scaled limits:',lims[0]*sigma,lims[1]*sigma)
     
     return lims[0]*sigma,lims[1]*sigma
-        
-x = 0
-sigma = 1
-
-l = FC_limit(x,sigma)
-print(l)
 
 
-   
+if __name__ == "__main__":  
 
-  
-
-#print(lims[0],lims[1])
-'''
-fct = [-2,-1,0,0.5,1,1.3,1.5,1.7,1.9,2,3] #test x values
-FCpaper = [0.4,0.81,1.64, 2.14, 2.64, 2.94, 3.14,3.34,3.54,3.64, 4.64] #upper limits
-downs = [0,0,0,0,0,0.02,0.22,0.38,0.51,0.58,1.37] #lower limits
-
-  
-plt.figure(1)
-plt.plot(lims[2],mu_bins,color='C0',label = 'This implementation')
-plt.plot(lims[3],mu_bins,color='C0')
-#plt.axvline(testx,color='#d3d3d3',linestyle='--')
-#plt.axhline(lims[0],color='#d3d3d3',linestyle='--')
-#plt.axhline(lims[1],color='#d3d3d3',linestyle='--')
+    import matplotlib.pyplot as plt
 
 
-plt.xlim(0,7)
-plt.ylim(0,5)
-plt.legend()
-plt.xlabel(r"$x/\sigma$",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
-plt.ylabel("$\mu/\sigma$",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
-
-#the values it should be getting are in FCpaper and downs for the up/down limits
-
-fct = [-2,-1,0,0.5,1,1.3,1.5,1.7,1.9,2,3] #test x values
-FCpaper = [0.4,0.81,1.64, 2.14, 2.64, 2.94, 3.14,3.34,3.54,3.64, 4.64] #upper limits
-downs = [0,0,0,0,0,0.02,0.22,0.38,0.51,0.58,1.37] #lower limits
-
-testmus = np.linspace(-2,3,10)
-
-ls =[]
-ds = []
-
-for t in testmus:
-    lim = FC(x_bins,mean,width,0.90,t)
-    ls.append(lim[1])
-    ds.append(lim[0])
+    plt.style.use('gm2.mplstyle')
+    plt.ion()
+      
+    x = 0
+    sigma = 2
     
+    l = FC_limit(x,sigma)
+    print(l)
 
-plt.figure(1)  
-plt.plot(testmus,ls,color='C0', label='This implementation')
-plt.plot(testmus,ds,color='C0')
-plt.plot(fct,FCpaper,color='C1', label='FC paper values')
-plt.plot(fct,downs,color='C1')
 
-#plt.ylim(bottom=0)
-#plt.xlim(0,4)
 
-'''
+    '''
+    fct = [-2,-1,0,0.5,1,1.3,1.5,1.7,1.9,2,3] #test x values
+    FCpaper = [0.4,0.81,1.64, 2.14, 2.64, 2.94, 3.14,3.34,3.54,3.64, 4.64] #upper limits
+    downs = [0,0,0,0,0,0.02,0.22,0.38,0.51,0.58,1.37] #lower limits
+    
+      
+    plt.figure(1)
+    plt.plot(lims[2],mu_bins,color='C0',label = 'This implementation')
+    plt.plot(lims[3],mu_bins,color='C0')
+    #plt.axvline(testx,color='#d3d3d3',linestyle='--')
+    #plt.axhline(lims[0],color='#d3d3d3',linestyle='--')
+    #plt.axhline(lims[1],color='#d3d3d3',linestyle='--')
+    
+    
+    plt.xlim(0,7)
+    plt.ylim(0,5)
+    plt.legend()
+    plt.xlabel(r"$x/\sigma$",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("$\mu/\sigma$",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
+    
+    #the values it should be getting are in FCpaper and downs for the up/down limits
+    
+    fct = [-2,-1,0,0.5,1,1.3,1.5,1.7,1.9,2,3] #test x values
+    FCpaper = [0.4,0.81,1.64, 2.14, 2.64, 2.94, 3.14,3.34,3.54,3.64, 4.64] #upper limits
+    downs = [0,0,0,0,0,0.02,0.22,0.38,0.51,0.58,1.37] #lower limits
+    
+    testmus = np.linspace(-2,3,10)
+    
+    ls =[]
+    ds = []
+    
+    for t in testmus:
+        lim = FC(x_bins,mean,width,0.90,t)
+        ls.append(lim[1])
+        ds.append(lim[0])
+        
+    
+    plt.figure(1)  
+    plt.plot(testmus,ls,color='C0', label='This implementation')
+    plt.plot(testmus,ds,color='C0')
+    plt.plot(fct,FCpaper,color='C1', label='FC paper values')
+    plt.plot(fct,downs,color='C1')
+    
+    #plt.ylim(bottom=0)
+    #plt.xlim(0,4)
+    
+    '''
