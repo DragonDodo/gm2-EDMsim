@@ -6,21 +6,16 @@
 
 from scipy.stats import norm
 
-def pVal(mean,sigma,x):
-    #functional shorthand to calculate p-value
-    p = norm.cdf(x,mean,sigma)
-    return p
-
-def findCLsLimit(xrange,amp,err,sig):
+def findCLsLimit(xrange,s,b,sig,err):
     #function to calc the CLs defined limit
     limit = 0
     for t in xrange:
-        pb = pVal(0,err,t)
-        psb = pVal(amp,err,t)
+        pb = norm.cdf(s,b,err)
+        psb = norm.cdf(s,t+b,err)
         CLs = psb/pb
-        print(t, CLs, pb, psb)
+        #print(t, CLs, pb, psb)
         
-        if CLs <= sig: #iterate over bins to find limit CLs = sig
+        if 1-CLs <= sig: #iterate over bins to find limit CLs = sig
             limit = t
             
     
@@ -34,32 +29,41 @@ if __name__ == "__main__":
     
     #make plots in g-2 style
     plt.style.use('gm2.mplstyle')
-    plt.ion()  
+    plt.ion() 
+    
+    
 
            
-    xrange = np.linspace(0,100e-19,1000) #this range is what you scan over: so setting it from 0 limits the edm > 0. 
-    amp = 0.3e-19
-    err = 2e-19
+    xrange = np.linspace(0,10,100) #this range is what you scan over: so setting it from 0 limits the edm > 0. 
+    amp = 0
+    err = 1
     
-    amps = np.linspace(0e-19,10e-19,40) #input du values (not really amplitudes any more)
+    signal = 0.4
+    background = 0
+    
+    sol = findCLsLimit(xrange,signal,background,0.9,err)
+    print(sol)
+    
+    
+    '''
+    amps = np.linspace(-2,8,40) #input du values (not really amplitudes any more)
     
     clist = []
     olist = []
     
     for i in amps:
-        sol = findCLsLimit(xrange,i,err,0.95) # CLs   
-        pb = norm.interval(0.95,loc=i,scale=err)[1] #old but two-tailed method
+        sol = findCLsLimit(xrange,i,background,0.9,err)  
+        
         clist.append(sol)
-        olist.append(pb)
+        
         
         
     plt.figure(1)  
-    plt.scatter(amps,clist,label='CLs method')  
-    plt.scatter(amps,olist,label='Naive frequentist')
+    plt.plot(amps,clist,label='CLs method')  
     plt.xlim(min(amps),max(amps))
-    plt.ylim(min(clist),max(olist))
+    plt.ylim(0,max(clist))
     plt.xlabel(r"$d_{u}\ from\ amplitude\ [e\ cm]$",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0, labelpad=40)
     plt.ylabel("Limit set [e cm]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
-        
+    '''
         
     
