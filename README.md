@@ -22,6 +22,6 @@ This is the official matplotlib style file for the g-2 experiment, needed to mak
 
 # CLs.py and FC.py
 
-Two methods for setting more rigorious EDM limits than the base frequentist method.
+Two methods for setting more rigorious EDM limits than the vanilla confidence interval.
 
 
