@@ -15,8 +15,9 @@ def folded_norm(x,bin_width,mu,sigma):
     return (upbranch+downbranch)*1/(sigma*sqrt(2*pi))*bin_width
 
 
-def FC_band(x_bins,mu_bins,s_width,significance,b_mean=0,b_width=1):
+def FC_band(x_bins,mu_bins,s_width,significance):
     #Function to calculate the x-values of the feldman-cousins interval
+    #Normalised by sigma for speed! All scaling is done by helper functions.
     
     #x_bins - range of x to scan over
     #width - standard deviation of the gaussian
@@ -32,13 +33,13 @@ def FC_band(x_bins,mu_bins,s_width,significance,b_mean=0,b_width=1):
     
         #define mu_max for all x - mu_max = max(0,x)
         for xs in bins:
-            if xs >= b_mean:
+            if xs >= 0:
                 mu_max = xs
-            elif xs < b_mean:
-                mu_max = b_mean
+            elif xs < 0:
+                mu_max = 0
     
             #R ratio P(x|mu)/P(x|mu_max)
-            R = folded_norm(xs,xwidth,val,s_width)/folded_norm(xs,xwidth,mu_max,b_width)
+            R = folded_norm(xs,xwidth,val,1)/folded_norm(xs,xwidth,mu_max,1)
             #R = norm(val,1).pdf(xs)/norm(mu_max,1).pdf(xs)            
             Rs.append([xs,R])      
     
@@ -63,8 +64,8 @@ def FC_band(x_bins,mu_bins,s_width,significance,b_mean=0,b_width=1):
             if psum > significance:
                 break
         
-        up = max(xlimvals)   
-        down = min(xlimvals)   
+        up = max(xlimvals)
+        down = min(xlimvals)
         #print(psum)
         
         if up == max(x_bins):
@@ -112,19 +113,29 @@ def find_FC_limits(band,x_bins,mu_bins,testval):
     return downlim,uplim,upx,downx
 
 
-def FC_limit(x,s_width,b_mean,b_width,x_bins=linspace(-10,10,400),mu_bins=linspace(0,8,100),alpha=0.9):
+def FC_limit(x,s_width,bgmean,x_bins=linspace(-10,10,400),mu_bins=linspace(0,8,100),alpha=0.9):
     #Helper function to collect it all together and scale the output 
-    testx = x/s_width
+    
+    testx = abs(x-bgmean)
+    
+    binwidth = (max(x_bins)-min(x_bins))/len(x_bins)
+    
+    if testx ==0:
+        testx = binwidth #smallest limit that can be calcuated with the step size
+        
+    print(testx)
+
+    
     
     if testx > max(mu_bins):
         raise ValueError('x/sigma not in band, scan for wider mean value!')
         
-    rough = FC_band(x_bins,mu_bins,s_width,alpha,b_mean,b_width)
+    rough = FC_band(x_bins,mu_bins,s_width,alpha)
     lims = find_FC_limits(rough,x_bins,mu_bins,testx) 
     
-    print('Limits:',lims[0],lims[1])
+    print('Limits (x10^(n)):',lims[0]*s_width,lims[1]*s_width)
     
-    return lims[0],lims[1]
+    return lims[0]*s_width,lims[1]*s_width
 
 
 def one_sided_limit(mean,sigma,x_bins,alpha=0.9):
@@ -132,9 +143,10 @@ def one_sided_limit(mean,sigma,x_bins,alpha=0.9):
     xwidth = (max(x_bins)-min(x_bins))/len(x_bins)
     
     psum = 0
-    
+    uplim = 0
     for i in x_bins:
-        pv = folded_norm(i,xwidth,mean,1)
+        pv = folded_norm(i,xwidth,mean,sigma)
+        #pv = norm.pdf(i,mean,sigma)*xwidth
         psum += pv
         
         if psum >= alpha:
@@ -155,22 +167,34 @@ if __name__ == "__main__":
       
     
     x_bins=linspace(0,20,1000)
-    mu_bins=linspace(0,8,1000)
+    mu_bins=linspace(0,10,1000)
+    xwidth = (max(x_bins)-min(x_bins))/len(x_bins)
+    
+    x = 10
+    sigma = 4
+    #sigma = 1
+    
+    lim2 = FC_limit(x,sigma,0,x_bins,mu_bins,0.9)
 
     '''
     plt.figure(1)
-    plt.plot(x_bins,folded_norm(x_bins,xwidth,2,2))
-    
+    plt.plot(x_bins,folded_norm(x_bins,xwidth,4,2),label=r'$\mu=4, \sigma=2$')
+    plt.xlabel("x",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("PDF of x",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
+    plt.legend(loc='upper right')
+    '''
 
     
-    halfgaus = folded_norm(x_bins,xwidth,2,2)
+    #halfgaus = folded_norm(x_bins,xwidth,2,2)
     #normed = halfgaus*xwidth
-    inthg = spint.simps(halfgaus,dx=1)
-    print(inthg)   '''
+
+
+    '''
+
     
     
 
-    testmus = np.linspace(0.01,8,100)
+    testmus = np.linspace(0,8,100)
     
     ls =[]
     ds = []
@@ -180,44 +204,52 @@ if __name__ == "__main__":
     gup=[]
     gdown=[]
     
-    sid = []
-    
+    sid = []    
     cid = []
+
+
+    x = 1
+    sigma = 1
     
 
     
-    x = 1
-    sigma = 1
+       
     
         
     
     
-    lim = FC_band(x_bins,testmus,sigma,0.9,0,1)
-    #lim = FC_limit(x,sigma,0,2,x_bins,mu_bins,0.9)
+    lim = FC_band(x_bins,testmus,sigma,0.9)
+    lim2 = FC_limit(x,sigma,0,x_bins,mu_bins,0.9)
+    onesid = one_sided_limit(x,sigma,x_bins,0.95)
+    interval = norm.interval(0.95,loc=x,scale=sigma)
+    print(lim2)
     
-
-
     for i in lim:
         ls.append(i[0])
         ds.append(i[1])
         
+        
+  
+    plt.figure(1)  
+    plt.plot(testmus,ls2)
+    plt.plot(testmus,ds2,label=r'$\mu_{bkg}=0.0$')
+    
+    
 
-    '''    
-    plt.figure(1)   
-    plt.plot(testmus,ls)
-    plt.plot(testmus,ds,color='C1',label=r'$\sigma_{bkg}=3.0$')
+    
     plt.xlabel(r"$Measured\ value\ x$",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
     plt.ylabel("$Parameter\ value\ \mu$",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20)
-    '''
-        
+    plt.legend(loc='upper left')
+    
+       
     for i in testmus:
         interval = norm.interval(0.9,loc=i,scale=1) 
         gup.append(interval[1])
         gdown.append(interval[0])
         onesid = one_sided_limit(i,1,x_bins)
         sid.append(onesid)
-        sol = CLs.findCLsLimit(x_bins,i,0,0.9,sigma) 
-        cid.append(sol)
+        #sol = CLs.findCLsLimit(x_bins,i,0,0.9,sigma) 
+        #cid.append(sol)
 
 
 
@@ -237,7 +269,7 @@ if __name__ == "__main__":
     plt.plot(testmus,gdown,color='black',linestyle='--')
     plt.plot(testmus,sid,color='blue', label = 'One-sided folded gaussian')
     plt.plot(testmus,[0 for i in testmus],color='blue')
-    plt.plot(testmus,cid,color='green', label = 'CLs method')
+    #plt.plot(testmus,cid,color='green', label = 'CLs method')
 
     
     plt.xlim(0,2.5)
@@ -248,7 +280,8 @@ if __name__ == "__main__":
 
     
     plt.axvline(0.4,color='#d3d3d3',linestyle='--')
-    '''
+    
+
     
     plt.axhline(l[0]/sigma,color='#d3d3d3',linestyle='--')
     plt.axhline(l[1]/sigma,color='#d3d3d3',linestyle='--')

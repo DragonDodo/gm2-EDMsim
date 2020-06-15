@@ -3,15 +3,19 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-#import scipy.integrate as spint
+import scipy.integrate as spint
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import time as timestamp
 
+#make plots in g-2 style
+plt.style.use('gm2.mplstyle')
+plt.ion()
+
 #--------------------------
 #Options area
 
-n_events = 10000000 #number of events to generate
+n_events = 100000 #number of events to generate
 t_start = 0 #start time (ns)
 t_end = 30000 #end time (ns)
 nbins = 100 #number of time bins to use
@@ -36,7 +40,7 @@ class muon:
         eE = sample_muE(1)
         self.E = eE
         self.angle=sample_angle(1,eE)
-        self.lifetime = 2.1969811e-6*1e9 #in ns
+        self.lifetime = 2.1969811e-6*1e9 #ns
         self.P = np.sqrt(self.E**2-eM**2)
         self.vangle = sample_vertical_angle(1)        
         self.decay_time = np.random.exponential(self.lifetime*gamma)
@@ -84,7 +88,7 @@ class muon:
         wEDM = 1.5e-3 # g-2 freq
         
         d_u = 100*1.9e-19 #100BNL
-        d_u = 1.76e-19
+        #d_u = 1.76e-19
         consts = 9.158e15
         
         A = consts*d_u
@@ -99,7 +103,7 @@ class muon:
         tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
         svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
 
-        self.angle = np.arctan(tangle)
+        #self.angle = np.arctan(tangle)
         self.vangle = np.arcsin(svangle)
         
     
@@ -111,6 +115,36 @@ class muon:
     
         noise = np.random.normal(0,uncert) #assume gaussian uncert
         self.vangle = self.vangle + noise
+        
+        
+    #def radial_field:
+    #radial field produces a fake EDM by tilting the plane towards the center? of the ring 
+    #need to fake the circular geometry - use the momentum direction? 
+    
+    def radial_field(self,t,Br):
+        
+        #do need to add in a shift here for the error
+        
+        w = 1.5e-3 # g-2 freq
+    
+
+        
+        #Br_sample = abs(np.random.normal(0,Br))
+        
+        A = np.arctan(Br/1e6)
+        phase = np.pi/2
+        dphi = A*np.cos(w*t-phase) 
+        
+
+        theta  = self.angle
+        phi  = self.vangle
+
+        svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+
+        self.vangle = np.arcsin(svangle)   
+        self.vangle=np.arctan(np.tan(self.vangle)/gamma)
+    
+        self.oV = self.vangle
 
         
 #-------------------------------------------------------
@@ -197,10 +231,12 @@ def decayMuons(n):
     
     for i in range(n+1):
         m = muon()
-        m.EDMShift(m.decay_time) #apply EDM precession
-        m.gm2Shift(m.decay_time) #apply g-2 precession        
-        m.boost() #boost into lab frame  
-        m.smear(0) #uniform tracker resolution
+        #m.EDMShift(m.decay_time) #apply EDM precession
+        m.gm2Shift(m.decay_time) #apply g-2 precession 
+        
+        m.boost() #boost into lab frame 
+        m.radial_field(m.decay_time,10000)         
+        #m.smear(0.05) #uniform tracker resolution
         muonlist.append(m)  
         #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...', end='')
     return muonlist
@@ -251,10 +287,10 @@ if option == "MCgen":
         n, fitbins = np.histogram(bin_contents,b,density=True)      
         
         centers = (0.5*(b[1:]+b[:-1]))
-        pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
+        #pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
                
-        m = pars[0]
-        e = np.sqrt(cov[0,0])    
+        #m = pars[0]
+        #e = np.sqrt(cov[0,0])    
         
         stmean = np.mean(bin_contents)
         stderr = np.std(bin_contents)/np.sqrt(len(bin_contents))
@@ -262,8 +298,8 @@ if option == "MCgen":
         
         avAngle.append(stmean)
         spreadAngle.append(stderr)
-        fit1.append(m)
-        fit2.append(e)
+        #fit1.append(m)
+        #fit2.append(e)
         '''        
         plt.hist(bin_contents,b,histtype='step',normed=True)
         plt.xlabel('Phi angle post-boost')
@@ -272,30 +308,48 @@ if option == "MCgen":
         '''
         
      
+    avAngle = np.array(avAngle)    
+    spreadAngle = np.array(spreadAngle)
     #Plot wiggles for checking outputs: not nice plots, use the plotting code!
     plt.figure(1)    
     plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
     plt.scatter(bins[:-1],counts,marker='.',label='',color='k')       
-    plt.xlabel('Time [ns]')
-    plt.ylabel('Number of positrons with E>2000 MeV')
-    plt.legend()    
-       
-    #whether you use mean/std or fit results depends on stats - fit won't work with empty bins    
+    plt.xlabel("Time [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Count with E>2000 MeV/300ns",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
+    #plt.legend()    
+    ###33cccc
+    ##942ed2 #purple
+    ##668edd blue
     plt.figure(2)
-    plt.errorbar(modbins[:-1],avAngle,spreadAngle, marker='.')     
-    plt.xlabel('Time [ns]')
-    plt.ylabel('Average vertical angle')       
+    plt.fill_between(modbins[:-1],avAngle-spreadAngle,avAngle+spreadAngle,alpha=0.7,color='b',label='No Radial field')
+    plt.scatter(modbins[:-1],avAngle, marker='.',color='k')     
+    plt.xlim(0,max(modbins))
+    
+    A = np.tan(100/(gamma*1e6))
+    plt.axhline(A)
+    plt.xlabel("Time [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Average vertical angle [rad] /300ns",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)     
+    #plt.legend()
     
     name_stampG = str('GM2-')+str(timestr)
     name_stampE = str('delEDM-')+str(timestr)
     
-    f=open('%s.txt' %name_stampG,'w')
+    f=open('ncount.txt','a')
+    N = len(high_E)
+    f.write(str(N)+',')
+    f.close()
+    
+    
+    #f=open('%s.txt' %name_stampG,'w')
+    f = open('gm2.txt','w')
     for time,count,err in zip(bins[:-1],counts,uncert):
         f.write(str(time)+','+str(count)+','+str(err)+'\n')
-    f.close()    
+    f.close()  
     
-    f=open('%s.txt' %name_stampE,'w')
-    for time,angle,err in zip(modbins[:-1],fit1,fit2):
+    n = 'edmcheck'
+    
+    f=open('edm.txt','w')
+    for time,angle,err in zip(modbins[:-1],avAngle,spreadAngle):
         f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
         
@@ -305,11 +359,13 @@ if option == "test":
     #it plots things but doesn't save any data 
 
     energies = []
+    olde = []
     pangles = []
     momenta = []
     vangles = []
     olda = []
     times = []
+    oldv = []
 
     
     T = 2*np.pi/1.5e-3           
@@ -319,7 +375,12 @@ if option == "test":
         
 
         vangles.append(i.vangle)
-        times.append(i.decay_time)
+        #times.append(i.decay_time)
+        olde.append(i.oE)
+        olda.append(i.oA)
+        energies.append(i.E)
+        pangles.append(i.angle)
+        oldv.append(i.oV)
         
 
         
@@ -337,10 +398,10 @@ if option == "test":
             
         '''
         
-                 
+    '''            
     #These plots can be used to check the samples follow the required distributions
     #Not needed unless you've tampered with those
-    '''   
+      
     #define checking plots for distributions
     es = range(0,54,1)
     espec = [energyDecaySpectrum(i) for i in es]
@@ -349,24 +410,29 @@ if option == "test":
     angles = np.arange(-np.pi,np.pi,0.1)
     dist = [1 + (1/3)*np.cos(theta) for theta in angles]
     distN = [i*1/float(spint.simps(dist,angles)) for i in dist]
-
+    
     #plot positron energy spectrum
     plt.figure(1)
-    plt.hist(energies,bins=50,histtype='step',normed=True)
-    #plt.scatter(es,especN,marker='.')
-    plt.xlabel('Positron energy [MeV]')
-    plt.ylabel('Count [arbitrary units]')
-    #plt.ylim(0,0.05)
-    
+    plt.hist(olde,bins=50,histtype='step',normed=True, label = 'Unboosted')
+    plt.hist(energies,bins=50,histtype='step',normed=True, label = 'Boosted')
+    #plt.scatter(es,especN,marker='.', label = 'Expected functional form')
+    plt.xlabel("Positron energy [MeV]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Count/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
+    plt.ylim(bottom=0)
+        
     #plot positron angle spectrum
     plt.figure(2)
     #plt.hist(pangles,bins=50,histtype='step',label='Boosted')
-    plt.hist((olda),bins=50,histtype='step',label='Unboosted')
-    #plt.scatter(angles,distN,marker='.')
+    plt.hist((olda),bins=50,histtype='step',label='MC data',normed=True)
+    #plt.scatter(angles,distN,marker='.', label = 'Expected functional form')
     plt.xlabel('cos(angle), pre boost')
     plt.ylabel('Count [arbitrary units]')
-    #plt.legend()
-    #plt.ylim(0,0.25)
+    plt.xlabel(r"Azimuthal angle $\theta$ [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Count/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
+    plt.ylim(bottom=0)
+    plt.legend(loc='upper left')
+    plt.ylim(0,0.30)
+    
     
     #plot momentum spectrum
     plt.figure(3)
@@ -377,22 +443,23 @@ if option == "test":
     
     #plot 2d angle vs energy 
     plt.figure(4)
-    plt.hist2d(pangles, energies, (50, 50), cmap=plt.cm.jet)
-    plt.xlabel('Angle from momentum direction')
-    plt.ylabel('Positron energy [MeV]')
+    plt.hist2d(olde, energies, (50, 50), cmap=plt.cm.jet)
     plt.colorbar()
+    plt.xlabel(r"Angle from momentum direction [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Positron energy [MeV]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
     #plt.xlim(0.925,1.)
+    
     '''
-
+    '''
     #plot vertical angle distribution
     plt.figure(5)
-    minx = -0.5
-    maxx = 0.5
+    minx = -1.6
+    maxx = 1.6
     bins = np.linspace(minx,maxx,100)
     #bins = 50
 
       
-    n, bins = np.histogram(vangles,bins,density=True)
+    n, bins = np.histogram(oldv,bins,density=True)
     
     centers = (0.5*(bins[1:]+bins[:-1]))
     pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1]) #can use cauchy
@@ -402,19 +469,48 @@ if option == "test":
     err = np.sqrt(cov[0,0])
     
     x = np.linspace(minx,maxx,200)
+    #plt.ylim(0,0.7)
     
-    plt.hist(vangles,bins=bins,histtype='step',label="10 mrad smear")
+    plt.hist(oldv,bins=bins,histtype='step',label="Unboosted",density=True)
+    plt.hist(vangles,bins=bins,histtype='step',label="Boosted",density=True)
+    #plt.scatter(bins,[0.5*verticalAngleSpectrum(b) for b in bins],marker='.', label = 'Expected functional form')
+    
+    
     plt.legend()
     
 
     #plt.plot(x,norm.pdf(x,pars[0],pars[1]))
 
     #plt.xlim(-0.5,0.5)
-    plt.xlabel("Vertical angle [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0, labelpad = 40)
-    plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
+    plt.xlabel("Vertical angle [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0, labelpad=20)
 
     
     plt.figure(6)
     plt.hist(times,bins=50,histtype='step',density=True)
-
     plt.show()
+    
+    aa = np.linspace(-np.pi,np.pi,100)
+    ens = [10,20,30,40,50]
+    plt.figure(7)
+    plt.xlabel("Angle from momentum direction [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.ylabel("Expected counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0, labelpad=20)
+
+    for i in ens:
+        plt.plot(aa,angleSpectrum(i,aa),label='%i MeV' %i)
+        
+    '''   
+    Brad = 60
+        
+    Berr = 60
+    
+    cnt = np.linspace(0,100,n_events)
+        
+    sample = [np.random.normal(Brad,Berr) for i in cnt]
+    
+    plt.figure(7)
+    plt.hist(sample,bins=50)
+    
+    
+    
+    
