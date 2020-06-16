@@ -15,7 +15,7 @@ plt.ion()
 #--------------------------
 #Options area
 
-n_events = 100000 #number of events to generate
+n_events = 10000 #number of events to generate
 t_start = 0 #start time (ns)
 t_end = 30000 #end time (ns)
 nbins = 100 #number of time bins to use
@@ -334,10 +334,7 @@ if option == "MCgen":
     name_stampG = str('GM2-')+str(timestr)
     name_stampE = str('delEDM-')+str(timestr)
     
-    f=open('ncount.txt','a')
-    N = len(high_E)
-    f.write(str(N)+',')
-    f.close()
+
     
     
     #f=open('%s.txt' %name_stampG,'w')
