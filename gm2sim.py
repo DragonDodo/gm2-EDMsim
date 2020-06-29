@@ -103,7 +103,7 @@ class muon:
         tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
         svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
 
-        self.angle = np.arctan(tangle)
+        #self.angle = np.arctan(tangle)
         self.vangle = np.arcsin(svangle)
         
     
