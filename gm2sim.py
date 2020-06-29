@@ -15,7 +15,7 @@ plt.ion()
 #--------------------------
 #Options area
 
-n_events = 10000 #number of events to generate
+n_events = 100000#number of events to generate
 t_start = 0 #start time (ns)
 t_end = 30000 #end time (ns)
 nbins = 100 #number of time bins to use
@@ -101,9 +101,9 @@ class muon:
         phi  = self.vangle
 
         tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
-        svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+        svangle = np.cos(np.arctan(tangle))*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+        
 
-        #self.angle = np.arctan(tangle)
         self.vangle = np.arcsin(svangle)
         
     
@@ -125,8 +125,7 @@ class muon:
         
         #do need to add in a shift here for the error
         
-        w = 1.5e-3 # g-2 freq
-    
+        w = 1.5e-3 # g-2 freq    
 
         
         #Br_sample = abs(np.random.normal(0,Br))
@@ -139,7 +138,8 @@ class muon:
         theta  = self.angle
         phi  = self.vangle
 
-        svangle = np.cos(theta)*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+        tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
+        svangle = np.cos(np.arctan(tangle))*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
 
         self.vangle = np.arcsin(svangle)   
         self.vangle=np.arctan(np.tan(self.vangle)/gamma)
@@ -231,11 +231,11 @@ def decayMuons(n):
     
     for i in range(n+1):
         m = muon()
-        #m.EDMShift(m.decay_time) #apply EDM precession
+        m.EDMShift(m.decay_time) #apply EDM precession
         m.gm2Shift(m.decay_time) #apply g-2 precession 
         
         m.boost() #boost into lab frame 
-        m.radial_field(m.decay_time,10000)         
+        #m.radial_field(m.decay_time,100000)         
         #m.smear(0.05) #uniform tracker resolution
         muonlist.append(m)  
         #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...', end='')
@@ -259,16 +259,20 @@ if option == "MCgen":
     avAngle= []
     spreadAngle = []
     fit1 =[]
-    fit2 = []  
+    fit2 = [] 
+
     
     for i in genmuons: #g-2 energy cut
         if i.E > 2000:
             high_E.append(i.decay_time)
+ 
+        if i.P > 0 and i.P < 4000:           
+            
+            
+            modtime = i.decay_time%T
+            times.append(modtime)
+            vangles.append(i.vangle) #average vertical angle for EDM    
         
-        modtime = i.decay_time%T
-        times.append(modtime)
-        vangles.append(i.vangle) #average vertical angle for EDM    
-    
     #bin the counts/angles into time bins
     counts, edges = np.histogram(high_E,bins)    
     uncert = np.sqrt(counts)
@@ -307,7 +311,7 @@ if option == "MCgen":
         plt.legend()
         '''
         
-     
+
     avAngle = np.array(avAngle)    
     spreadAngle = np.array(spreadAngle)
     #Plot wiggles for checking outputs: not nice plots, use the plotting code!
@@ -325,8 +329,7 @@ if option == "MCgen":
     plt.scatter(modbins[:-1],avAngle, marker='.',color='k')     
     plt.xlim(0,max(modbins))
     
-    A = np.tan(100/(gamma*1e6))
-    plt.axhline(A)
+    
     plt.xlabel("Time [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
     plt.ylabel("Average vertical angle [rad] /300ns",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)     
     #plt.legend()
@@ -336,7 +339,7 @@ if option == "MCgen":
     
 
     
-    
+    '''
     #f=open('%s.txt' %name_stampG,'w')
     f = open('gm2.txt','w')
     for time,count,err in zip(bins[:-1],counts,uncert):
@@ -345,11 +348,11 @@ if option == "MCgen":
     
     n = 'edmcheck'
     
-    f=open('edm.txt','w')
+    f=open('edm1500.txt','w')
     for time,angle,err in zip(modbins[:-1],avAngle,spreadAngle):
         f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
-        
+    '''    
 if option == "test":
     
     #this area is more of a sandbox, good for checking distributions
