@@ -16,6 +16,8 @@ gamma = 29.3 #'magic' gamma value for g-2
 plt.style.use('gm2.mplstyle')
 plt.ion()
 
+usingAllMomenta = True
+
 
 def chiSquare(function,datax,datay,fit_params,error_array):
     #function to calculate a general chi-squared value from a fit
@@ -53,9 +55,14 @@ def fit_leastsq(p0, datax, datay, function):
     perr_leastsq = np.array(error) 
     return pfit_leastsq, perr_leastsq 
 
-def EDMamplitude_to_tilt(a):
+def EDMamplitude_to_tilt(a): 
     consts = 9.158e15       
     d_u = np.arctan(gamma*np.tan(a/consts))
+    
+    if usingAllMomenta == True:
+    #decay asymmetry correction for combined dataset - if using momentum cuts, will need a different fraction!
+        d_u = d_u*1.448480563721545
+        
     return d_u
 
 def limitCalc(a,err,CL):
@@ -63,7 +70,11 @@ def limitCalc(a,err,CL):
     amp = a*10**(-1*power)
     err = err*10**(-1*power)
     
-    l = FC.FC_limit(amp,err,0,x_bins=x_bins,mu_bins=mu_bins,alpha=CL)
+    #this can be a little tempramental - if you get errors, adjust the ranges until you don't or limits will be too low
+    x_bins=np.linspace(0,80,1000)
+    mu_bins=np.linspace(0,40,1000)
+    
+    l = FC.FC_limit(amp,err,x_bins=x_bins,mu_bins=mu_bins,alpha=CL)
     up = l[1]*10**(power)
     down = l[0]*10**(power)
     
@@ -73,8 +84,8 @@ def limitCalc(a,err,CL):
 
 
 #data here
-tgm2, gm2counts, gm2errors = list(np.loadtxt("gm2.txt",unpack=True,delimiter=','))
-t,counts,errors = list(np.loadtxt("hadd.txt",unpack=True,delimiter=','))
+tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2_10mil.txt",unpack=True,delimiter=','))
+t,counts,errors = list(np.loadtxt("edm.txt",unpack=True,delimiter=','))
 
 
 # Five-parameter g-2 fit
@@ -87,8 +98,8 @@ w = p1gm2[3]
 phi = p1gm2[4]-np.pi/2
 
 # EDM wiggle fit with a shifted sine
-fitfuncedm = lambda p, x: p[0]*np.sin(w*x+phi) + p[1]
-p0edm = [0,0] 
+fitfuncedm = lambda p, x: -p[0]*np.sin(w*x+p[2]) + p[1]
+p0edm = [0,0,np.pi] 
 p1edm, erredm = fit_leastsq(p0edm,t,counts,fitfuncedm)
 chiedm = chiSquare(fitfuncedm,t,counts,p1edm,errors)[0]
 
@@ -99,28 +110,15 @@ fitTilterr = EDMamplitude_to_tilt(erredm[0])
 xrange = np.linspace(-1e-18,1e-18,1000)
 limitGaus = norm.pdf(xrange,fitTilt,fitTilterr)
 
-interval = norm.interval(0.90,loc=fitTilt,scale=fitTilterr)
+#interval = norm.interval(0.90,loc=fitTilt,scale=fitTilterr)
 #limit = interval[1]
 #print(limit)
 
-#this can be a little tempramental - if you get errors, adjust the ranges until you don't or limits will be too low
-x_bins=np.linspace(0,40,1000)
-mu_bins=np.linspace(0,20,1000)
+print(p1edm[0], erredm[0])
 
 
-
-
-lim = limitCalc(fitTilt,fitTilterr,0.9)
-print(lim)
-
-#----------------------
-
-
-
-
-
-
-#---------------------
+#lim = limitCalc(fitTilt,fitTilterr,0.9)
+#print(lim)
 
 
 
@@ -142,17 +140,20 @@ plt.text(30000,700,r'$\phi: %.2f \pm %.2f$' %(p1gm2[4],errgm2[4]),horizontalalig
 
 
 plt.figure(2)
+
 time = np.linspace(t.min(), t.max(), 1000)
-plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2')
+plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2',label='Original')
 plt.scatter(t,counts,marker='.', color='k')
-plt.plot(time,fitfuncedm(p1edm, time),color='r')
+
+plt.plot(time,fitfuncedm(p1edm, time),color='r',label='Fit to oscillation')
+
 plt.xlim(0,max(t))
 #plt.ylim(top=0.8e-3)
 plt.gca().ticklabel_format(style='sci', scilimits=(0,1), axis='y')
 plt.xlabel("Time % g-2 period [ns]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
 plt.ylabel("Average vertical angle [rad]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0,labelpad=20);
-plt.text(4000,0.7e-3,r'$\chi^{2}/dof: %.2f$' %(chiedm),horizontalalignment='right')
-plt.text(4000,0.6e-3,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e5),horizontalalignment='right')
+plt.text(4000,4e3,r'$\chi^{2}/dof: %.2f$' %(chiedm),horizontalalignment='right')
+plt.text(100,4e3,r'$Amplitude: (%.2f \pm %.2f) \times10^{-5} rad$' %(p1edm[0]*1e5,erredm[0]*1e5),horizontalalignment='left')
 
 xlow = np.linspace(0,1.68*2*fitTilterr,100)
 band = norm.pdf(xlow,fitTilt,fitTilterr)
@@ -160,11 +161,8 @@ band = norm.pdf(xlow,fitTilt,fitTilterr)
 
 
 
-plt.figure(3)
 
-plt.plot(xrange,limitGaus,label = 'Probability gaussian')
 '''
-
 plt.xlabel("EDM value [e cm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0,labelpad = 40)
 plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
 plt.axvline(lim[0],color='#d3d3d3',linestyle='--', label='90% FC limit')
