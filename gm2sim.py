@@ -247,6 +247,17 @@ timestr = timestamp.strftime("%Y%m%d-%H%M%S")
 #generate n muon decay events with previously defined time distribution
 genmuons = decayMuons(n_events)
 
+def detectorAcceptanceCut(data,val):
+    #simple vertical angle cut to simulate detector acceptance
+    output = []
+    for i in data:
+        if abs(i.vangle) <= val:
+            output.append(i)
+            
+    return output
+            
+
+
 if option == "MCgen":
 
     bins = np.linspace(t_start,t_end,nbins)
@@ -261,17 +272,22 @@ if option == "MCgen":
     fit1 =[]
     fit2 = [] 
 
+    ### Apply cuts to the data 
+    #data = genmuons
+    data = detectorAcceptanceCut(genmuons,1)
+    ###
+
     
-    for i in genmuons: #g-2 energy cut
+    for i in data: #g-2 energy cut
         if i.E > 2000:
             high_E.append(i.decay_time)
  
-        if i.P > 0 and i.P < 4000:           
+        #if i.P >= 0 and i.P < 3500:        
+
             
-            
-            modtime = i.decay_time%T
-            times.append(modtime)
-            vangles.append(i.vangle) #average vertical angle for EDM    
+        modtime = i.decay_time%T
+        times.append(modtime)
+        vangles.append(i.vangle) #average vertical angle for EDM    
         
     #bin the counts/angles into time bins
     counts, edges = np.histogram(high_E,bins)    
@@ -311,7 +327,6 @@ if option == "MCgen":
         plt.legend()
         '''
         
-
     avAngle = np.array(avAngle)    
     spreadAngle = np.array(spreadAngle)
     #Plot wiggles for checking outputs: not nice plots, use the plotting code!
@@ -325,7 +340,7 @@ if option == "MCgen":
     ##942ed2 #purple
     ##668edd blue
     plt.figure(2)
-    plt.fill_between(modbins[:-1],avAngle-spreadAngle,avAngle+spreadAngle,alpha=0.7,color='b',label='No Radial field')
+    plt.fill_between(modbins[:-1],avAngle-spreadAngle,avAngle+spreadAngle,alpha=0.7,color='r',label='No Radial field')
     plt.scatter(modbins[:-1],avAngle, marker='.',color='k')     
     plt.xlim(0,max(modbins))
     
@@ -338,8 +353,8 @@ if option == "MCgen":
     name_stampE = str('delEDM-')+str(timestr)
     
 
+
     
-    '''
     #f=open('%s.txt' %name_stampG,'w')
     f = open('gm2.txt','w')
     for time,count,err in zip(bins[:-1],counts,uncert):
@@ -348,11 +363,11 @@ if option == "MCgen":
     
     n = 'edmcheck'
     
-    f=open('edm1500.txt','w')
+    f=open('edm.txt','w')
     for time,angle,err in zip(modbins[:-1],avAngle,spreadAngle):
         f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
     f.close()
-    '''    
+       
 if option == "test":
     
     #this area is more of a sandbox, good for checking distributions
