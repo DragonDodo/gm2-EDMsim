@@ -12,9 +12,17 @@ Python simulation code for g-2 EDM studies, without the faff of running the offi
 
 The n_events and n_bins have the usual tradeoff for good statistics per bin. 
 
+The decayMuons function is the main options block within the code - any methods for the decay class can be switched on and off here.
+
 # Physics studies 
 __Radial field__
+This is implemented by the radial_field function - when running, make sure the method is uncommented in decayMuons. The value of the radial field wanted can be set as a parameter of this function. 
 
+__Acceptance__
+There are several parts to the acceptance cut. These are applied to the MC data after it has been generated as a filter, with the default detectorAcceptanceCut applying both vertical and momentum cuts. The vertical cut value is a parameter of this function, and the momentum cut is fixed based on what positrons will hit the tracker. Each cut can be applied separately if wanted.
+
+__Running with ring geometry__
+This uses the ring_decay.py module (see below) to run a more physical setup, with decays happening at random points around a ring. This will calculate full tracks for each decay, check whether it hits the defined tracker area, and then only return those which do hit. To run with this, the momentum acceptance should be switched off (as otherwise it will be applied twice) the ring_decay module must be imported. Running with full ring is not reccomended as it is much slower and gives significantly worse statistics.
 
 # WiggleFitter.py
 
