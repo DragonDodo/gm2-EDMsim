@@ -16,7 +16,8 @@ gamma = 29.3 #'magic' gamma value for g-2
 plt.style.use('gm2.mplstyle')
 plt.ion()
 
-usingAllMomenta = True
+usingAllMomenta = False
+usingOptimisedCut = True
 
 
 def chiSquare(function,datax,datay,fit_params,error_array):
@@ -59,9 +60,15 @@ def EDMamplitude_to_tilt(a):
     consts = 9.158e15       
     d_u = np.arctan(gamma*np.tan(a/consts))
     
-    if usingAllMomenta == True:
+    if usingAllMomenta == True and usingOptimisedCut == False:
     #decay asymmetry correction for combined dataset - if using momentum cuts, will need a different fraction!
         d_u = d_u*1.448480563721545
+    elif usingOptimisedCut == True and usingAllMomenta == False:
+        d_u = d_u*1.1435246093837885
+    else:
+        print('Momentum cut mode chosen must be usingAllMomenta or usingOptimisedCut')
+        d_u = np.nan
+            
         
     return d_u
 
@@ -85,7 +92,7 @@ def limitCalc(a,err,CL):
 
 #data here
 tgm2, gm2counts, gm2errors = list(np.loadtxt("GM2_10mil.txt",unpack=True,delimiter=','))
-t,counts,errors = list(np.loadtxt("edm.txt",unpack=True,delimiter=','))
+t,counts,errors = list(np.loadtxt("EDM-acc1.txt",unpack=True,delimiter=','))
 
 
 # Five-parameter g-2 fit
@@ -110,11 +117,13 @@ fitTilterr = EDMamplitude_to_tilt(erredm[0])
 xrange = np.linspace(-1e-18,1e-18,1000)
 limitGaus = norm.pdf(xrange,fitTilt,fitTilterr)
 
+print(p1edm[0],erredm[0])
+
 #interval = norm.interval(0.90,loc=fitTilt,scale=fitTilterr)
 #limit = interval[1]
 #print(limit)
 
-print(p1edm[0], erredm[0])
+#print(p1edm[0], erredm[0])
 
 
 #lim = limitCalc(fitTilt,fitTilterr,0.9)
@@ -140,12 +149,23 @@ plt.text(30000,700,r'$\phi: %.2f \pm %.2f$' %(p1gm2[4],errgm2[4]),horizontalalig
 
 
 plt.figure(2)
-
+#942ed2
 time = np.linspace(t.min(), t.max(), 1000)
-plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2',label='Original')
+#plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2',label=r'No acceptance cut, A=4.9$\times 10^{-4}$')
+#lt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='#942ed2',label=r'No acceptance (A=-4.31 $\times 10^{-4})$')
+plt.fill_between(t,counts-errors,counts+errors,alpha=0.8,color='b',label=r'With acceptance (vert+nHits+volumes) (A=-8.5 $\times 10^{-5})$')
+
+#plt.fill_between(t,counts-errors,counts+errors,alpha=0.5,color='gray',label=r'Original')
+
+#counts2 = [i*1.14 for i in counts]
+
+#plt.fill_between(t,counts2-errors,counts2+errors,alpha=0.8,color='#942ed2',label=r'Corrected')
 plt.scatter(t,counts,marker='.', color='k')
 
-plt.plot(time,fitfuncedm(p1edm, time),color='r',label='Fit to oscillation')
+
+
+#plt.plot(time,fitfuncedm(p1edm, time)*1.14,color='r',label='Fit to corrected oscillation')
+#plt.axhline(0.0176,color='k',linestyle='--',label='Input EDM amplitude')
 
 plt.xlim(0,max(t))
 #plt.ylim(top=0.8e-3)
@@ -160,8 +180,6 @@ band = norm.pdf(xlow,fitTilt,fitTilterr)
 
 
 
-
-
 '''
 plt.xlabel("EDM value [e cm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0,labelpad = 40)
 plt.ylabel("Counts/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0)
@@ -171,6 +189,7 @@ plt.axvline(fitTilt,color='C0',linestyle='--')
 #plt.text(max(xrange),max(limitGaus)*0.95,r'$|d_{u}|\ < %.2f \times 10^{-19} e\ cm$' %(interval[1]*1e19),horizontalalignment='right')
 plt.legend(loc='upper left')
 '''
+
 
 
 
