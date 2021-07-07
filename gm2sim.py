@@ -3,8 +3,9 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+#import random
 #import scipy.integrate as spint
-from scipy.stats import norm, skewnorm
+#from scipy.stats import norm, skewnorm
 #from scipy.optimize import curve_fit
 import time as timestamp
 #import ring_decay
@@ -17,16 +18,16 @@ plt.ion()
 #--------------------------
 #Options area
 
-n_events = 100000 #number of events to generate
+n_events = 100000#number of events to generate
 t_start = 0 #start time (ns)
 t_end = 30000 #end time (ns)
-nbins = 100 #number of time bins to use
+nbins =  100 #number of time bins to use
 
 #Crude 'mode' selection: 
 #Options:
 #   'MCgen' to generate muon decays across the time range and plot oscillations
-#   'test' to check overall distribtuions
-option = "test"
+#   'test' to check overall distribtuions, not really needed any more, just add plots to MCgen
+option = "MCgen"
 #--------------------------
 
 #MeV units
@@ -34,12 +35,14 @@ muonM = 105.66
 eM = 0.51 
 Emax = muonM/2
 gamma = 29.3 #'magic' gamma value for g-2
-ringRadius = 7.1
+ringRadius = 7.1 #m
 
 class muon:
     #class to define a muon decay 
+    #It's more definining the positron attributes really
     
     def __init__(self):
+        #Generate muon attributes in the MRF
         eE = sample_muE(1)
         self.E = eE
         self.angle=sample_angle(1,eE)
@@ -93,8 +96,17 @@ class muon:
         
         self.P = np.sqrt(boostedPz**2+Px**2+Py**2)
         self.E = boostedE
+        
         self.angle = np.arctan(Px/boostedPz)
-        self.vangle=np.arctan(np.tan(self.vangle)/gamma)
+        #self.oA = np.arctan(Px/Pz)
+        
+        self.vangle = np.arctan(Py/boostedPz)
+        #print("----")
+        #print(self.P)
+        #print(self.vangle)
+        #print(Py/boostedPz)
+        #print(np.arcsin(Py/self.P))
+        #print("----")
         self.lifetime = self.lifetime*gamma
         
         self.pathlength = sample_pathlength(self.P)
@@ -104,27 +116,102 @@ class muon:
     def gm2Shift(self,t):
     #method to add in the g-2 oscillation by rotating spin vector by an angle
     #IMPORTANT: must do this before boosting!
+    #Can also lock the polarisation direction here in the plane 
+    
         w = 1.5e-3
         shift = w*t
         self.angle=self.angle+shift
-        self.oA = self.angle 
+        #self.angle=self.angle+np.pi/2 #lock the 'polarisation'
+        #self.oA = self.angle
         
     def EDMShift(self,t):
-    #method to add in an EDM oscillation, ie a vertical angle oscillation
+    #method to add in an EDM oscillation, ie a vertical angle oscillation from a tilted plane
     #Do before boosting!
         
         wEDM = 1.5e-3 # g-2 freq
         
-        d_u = 6*1.9e-19 #100BNL
+        d_u = 100*1.9e-19 #100BNL
         #d_u = 1.76e-19
         consts = 9.158e15
         
         A = consts*d_u
+        #A = 0
         #A = 10000/1e6
-        #A = 0.174
+        #A = 0.17
         #A = np.arctan(10000/1e6)
         #A = 1000
         phase = np.pi/2# EDM is pi/2 out of phase with g-2 oscillation        
+        dphi = A*np.cos(wEDM*t-phase) 
+        
+
+        theta  = self.angle
+        phi  = self.vangle
+
+        tangle = (np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi)))
+        svangle = np.cos(np.arctan(tangle))*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+        
+        
+        self.vangle = np.arcsin(svangle)
+        
+    
+        self.oV = self.vangle
+        
+
+        
+        
+    def smear(self,uncert):
+        #method to simulate the tracker resolution by smearing with a gaussian
+        #it's probably too simple
+        noise = np.random.normal(0,uncert) #assume gaussian uncert
+        self.vangle = self.vangle + noise
+        
+        
+    #def radial_field:
+    #radial field produces a fake EDM by tilting the plane towards the center? of the ring 
+    #need to fake the circular geometry - use the momentum direction? 
+    
+    def radial_field(self,t,Br):
+        #method to add in the impact of a radial field 
+        
+        #do need to add in a shift here for the error
+        
+        w = 1.5e-3 # g-2 freq    
+
+        
+        #Br_sample = abs(np.random.normal(0,Br))
+        
+        A = Br/(1e6)
+        #A = 0.1
+        
+        
+       # A = 0
+
+        phase = np.pi/2
+        dphi = A*np.cos(w*t-phase) 
+        
+
+        theta  = self.angle
+        phi  = -self.vangle
+
+        tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
+        svangle = np.cos(np.arctan(tangle))*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
+
+        self.vangle = np.arcsin(svangle)
+        #self.vangle=np.arctan(np.tan(self.vangle)/gamma)
+    
+        self.oV = self.vangle
+
+    def longitudinal_field(self,t):
+        #method to add in the longitudinal field, ie a vertical angle oscillation IN PHASE with wa
+    
+        
+        wEDM = 1.5e-3 # g-2 freq
+        
+        #A = 0.017 #1700ppm
+        A = 0.17e-3
+        #A = 10
+        #A = 1.16e-2
+        phase = 0# in phase with g-2 oscillation        
         dphi = A*np.cos(wEDM*t-phase) 
         
 
@@ -140,46 +227,10 @@ class muon:
     
         self.oV = self.vangle
         
-        
-    def smear(self,uncert):
-    #method to simulate the tracker resolution
-    
-        noise = np.random.normal(0,uncert) #assume gaussian uncert
-        self.vangle = self.vangle + noise
-        
-        
-    #def radial_field:
-    #radial field produces a fake EDM by tilting the plane towards the center? of the ring 
-    #need to fake the circular geometry - use the momentum direction? 
-    
-    def radial_field(self,t,Br):
-        
-        #do need to add in a shift here for the error
-        
-        w = 1.5e-3 # g-2 freq    
-
-        
-        #Br_sample = abs(np.random.normal(0,Br))
-        
-        A = np.arctan(Br/(1e6*gamma))
-       # A = 0
-
-        phase = np.pi/2
-        dphi = A*np.cos(w*t-phase) 
-        
-
-        theta  = self.angle
-        phi  = self.vangle
-
-        tangle = np.sin(theta)/(np.cos(theta)*np.cos(dphi)-np.tan(phi)*np.sin(dphi))
-        svangle = np.cos(np.arctan(tangle))*np.cos(phi)*np.sin(dphi)+np.sin(phi)*np.cos(dphi)
-
-        self.vangle = np.arcsin(svangle)
-        #self.vangle=np.arctan(np.tan(self.vangle)/gamma)
-    
-        self.oV = self.vangle
-        
     def shift_beam(self):
+        #General method for shifting beam relative to trackers 
+        #Have used this for beam dist, misaligment
+        
         phi = self.vangle
         length = self.pathlength
         
@@ -188,6 +239,22 @@ class muon:
         yphi = length*np.tan(phi)*1000 #convert to mm
         
        # xtheta = 1000*4*rc*np.sin(length/(2*rc))*np.sin(self.angle/2)
+        internal_align_shift = 0.2 #mm
+        
+        #tracker = random.randint(1, 8)
+        
+        #if tracker < 7:
+         #   self.beamy =  self.beamy + yphi + tracker*internal_align_shift
+        #elif tracker == 8:
+        #    self.beamy =  self.beamy + yphi - internal_align_shift
+        
+       # if tracker < 6:
+        #    self.beamy =  self.beamy + yphi - internal_align_shift
+        #elif tracker > 5:
+        #    self.beamy =  self.beamy + yphi + internal_align_shift
+            
+        
+        
         
         self.beamy =  self.beamy + yphi
         
@@ -202,7 +269,8 @@ class muon:
 #Define the energy distribution of muon decay and sample
 
 def energyDecaySpectrum(E):
-    #muon decay energy spectrum, assuming massless positrons     
+    #muon decay energy spectrum, assuming massless positrons  
+    #E = muon energy
     
     prefactor = 1e-5 #scale it close to 1
     bracket = (E**2)*np.float128((1-(4*E)/float(3*muonM)))
@@ -210,7 +278,8 @@ def energyDecaySpectrum(E):
     return prefactor*bracket
 
 
-def sample_muE(n): #using rejection sampling to get a sample of size n
+def sample_muE(n): 
+    #using rejection sampling to get a sample of size n
     samples = []
 
     while len(samples) < n:
@@ -229,6 +298,9 @@ def sample_muE(n): #using rejection sampling to get a sample of size n
 #Define angular distribution for positrons and sample
         
 def angleSpectrum(E,theta,Pu=1):
+    #E = positron energy, as angle is correlated with energy
+    #theta = precession angle in MRF
+    #Pu is the polarisation, set to 1 as default 
     
     x = E/Emax
 
@@ -265,7 +337,7 @@ def sample_vertical_angle(n):
 
     while len(samples) < n:
         z = np.random.uniform(-np.pi/2, np.pi/2)
-        u = np.random.uniform(0, 20.)
+        u = np.random.uniform(0, 12.)
 
         if u <= verticalAngleSpectrum(z):
             samples.append(z)
@@ -315,48 +387,53 @@ def sample_pathlength(p):
     mean = float(fit(p))
     
     return abs(np.random.normal(loc=mean,scale=0.5))
-    #return 2.2
+    #return 0.8
   
 #--------------------------------------------------------
 
 def decayMuons(n):
+    #main muon generating function
+    #all functions act on the muon object
+    #n = number of muons to generte
     muonlist = []
     
     
     for i in range(n+1):
         m = muon()
-        #m.EDMShift(m.decay_time) #apply EDM precession
-        m.gm2Shift(m.decay_time) #apply g-2 precession         
+        m.EDMShift(m.decay_time) #apply EDM precession
+        m.gm2Shift(m.decay_time) #apply g-2 precession   
+        #m.longitudinal_field(m.decay_time)
         m.boost() #boost into lab frame 
+        #m.longitudinal_field(m.decay_time)
         
-        m.radial_field(m.decay_time,10000)  
-        m.shift_beam()
+        #m.radial_field(m.decay_time,10000)  
+        #m.shift_beam()
         
         #m.smear(0.05) #uniform tracker resolution
         muonlist.append(m)  
-        #print('Generating decay',i,'of',n,',',int(i/n*100),'% done...', end='')
+        pc = i/n*100
+        if pc%10 == 0:
+            print('Generating decay',i,'of',n,',',int(i/n*100),'% done...','\n', end='')
     return muonlist
    
 #-------------------------------------------------------
 
-def detectorAcceptanceCut(data,val):
-    #simple vertical angle cut to simulate detector acceptance
+def detectorAcceptanceCut(data,val_low,val_high):
+    #simple vertical angle cut to simulate detector acceptance between val_low and val_high
     output = []
     
-    if val == None:
+    if val_low == None and val_high == None:
         return data
     
     else:    
         for i in data:
             #if abs(i.beamy) <= val:
             #ran = np.random.uniform(300,1000)
-            if abs(i.beamy) <= val:
-
+            if i.beamy <= val_high and i.beamy >= val_low:
                 output.append(i)
-
             
-        return mom_acc_cut(output)
-        #return output
+        #return mom_acc_cut(output)
+        return output
     
 def mom_acc_cut(data):
     output = acc_filter(data,momAcceptanceFunction,np.linspace(0,3089,50))
@@ -444,12 +521,12 @@ if option == "MCgen":
 
     ### Apply cuts to the data 
     data1 = genmuons
-    data3 = detectorAcceptanceCut(genmuons,50) 
-    #data2 = mom_acc_cut(data3)
+    data3 = detectorAcceptanceCut(genmuons,-150,150) 
+    #data2 = mom_acc_cut(data1)
     #data1 = ring_decay.hit_tracker(genmuons,x_min,x_max,y_min,y_max)[0]
 
 
-    datalist = [data1,data3]
+    datalist = [data1]
     
     cnt = 0
     
@@ -469,6 +546,11 @@ if option == "MCgen":
         spreadAngle = []
         fit1 =[]
         fit2 = [] 
+        olda = []
+        moms = []
+        momx = []
+        momy =[]
+        momz =[]
 
     
         for i in dset: #g-2 energy cut
@@ -476,10 +558,21 @@ if option == "MCgen":
                 high_E.append(i.decay_time)     
         
             #apply EDM momentum cuts
-            if i.P > 1000 and i.P <=2500:  
+            ang = i.oA%(2*np.pi)
+            
+            if i.P > 0 and i.P < 5000: #and abs(i.oA) <= np.pi/2:  
+                olda.append(i.oA)
+                Px = i.P*np.sin(i.angle)*np.cos(i.vangle)
+                Py = i.P*np.sin(i.vangle)
+                Pz = i.P*np.cos(i.angle)*np.cos(i.vangle)
+                moms.append(i.P)
+                momx.append(Px)
+                momy.append(Py)
+                momz.append(Pz)
                 modtime = i.decay_time%T
                 times.append(modtime)
-                vangles.append(i.vangle) #average vertical angle for EDM    
+                vangles.append(i.vangle)   
+
             
         #bin the counts/angles into time bins
         counts, edges = np.histogram(high_E,bins)    
@@ -491,21 +584,27 @@ if option == "MCgen":
         for i in range(1,len(modbins)):
             bin_contents = vangles[digitized==i]    
             
-            stmean = np.mean(bin_contents)
-            std = np.std(bin_contents)
+            if len(bin_contents) == 0:
+                stmean = 0
+                sterr = 0
+                
+            else:
             
-            #fit gaussian for average vertical angle and error
-            b = np.linspace(stmean-1*std,stmean+1*std,500)   
-            n, fitbins = np.histogram(bin_contents,b,density=True)      
+                stmean = np.mean(bin_contents)
+                std = np.std(bin_contents)
             
-            centers = (0.5*(b[1:]+b[:-1]))
-            #pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
+                #fit gaussian for average vertical angle and error
+                b = np.linspace(stmean-1*std,stmean+1*std,500)   
+                n, fitbins = np.histogram(bin_contents,b,density=True)      
+            
+                centers = (0.5*(b[1:]+b[:-1]))
+                #pars, cov = curve_fit(lambda x, mu, sig : norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[1,1])
                    
-            #m = pars[0]
-            #e = np.sqrt(cov[0,0])    
-            
-            stmean = np.mean(bin_contents)
-            stderr = np.std(bin_contents)/np.sqrt(len(bin_contents))
+                #m = pars[0]
+                #e = np.sqrt(cov[0,0])    
+                
+                #stmean = np.mean(bin_contents)
+                stderr = np.std(bin_contents)/np.sqrt(len(bin_contents))
             
             
             avAngle.append(stmean)
@@ -518,9 +617,12 @@ if option == "MCgen":
             plt.plot(b,norm.pdf(b,m,pars[1]),label = 'fit')
             plt.legend()
             '''
-            
+        #avAngle = [i/10 for i in avAngle]
+        #spreadAngle = [i/10 for i in spreadAngle]           
         avAngle = np.array(avAngle)    
         spreadAngle = np.array(spreadAngle)
+        
+        
         #Plot wiggles for checking outputs: not nice plots, use the plotting code!
         plt.figure(1)    
         plt.fill_between(bins[:-1],counts-uncert,counts+uncert,alpha=0.7,color='#ff7f0e')
@@ -532,20 +634,12 @@ if option == "MCgen":
         ##942ed2 #purple
         ##668edd blue
         
-        if cnt == 0:
-            colstr = '#942ed2'
-            labstr = r'No cut, A = (2.94 $\pm$ 2.50) $\times 10^{-4}$'
-        if cnt == 1:
-            colstr = 'b'
-            labstr = r'Post-correction, A = (0.81 $\pm$ 1.39) $\times 10^{-4}$'
+    
 
-        if cnt == 2:
-            colstr = 'r'
-            labstr = r'Pre-correction, A = (0.57 $\pm$ 1.12) $\times 10^{-4}$'
 
         
         plt.figure(2)
-        plt.fill_between(modbins[:-1],avAngle-spreadAngle,avAngle+spreadAngle,alpha=0.7,color=colstr,label=labstr)
+        plt.fill_between(modbins[:-1],avAngle-spreadAngle,avAngle+spreadAngle,alpha=0.7,color='r',label='40-50 MeV')
         plt.scatter(modbins[:-1],avAngle, marker='.',color='k')     
         plt.xlim(0,max(modbins))
         
@@ -569,11 +663,25 @@ if option == "MCgen":
         
         n = 'edmcheck'
         
-        f=open(ns,'w')
+        f=open('mrf.txt','w')
         for time,angle,err in zip(modbins[:-1],avAngle,spreadAngle):
             f.write(str(time)+','+str(angle)+','+ str(err)+'\n')
         f.close()
         cnt += 1
+        
+        mombins = np.arange(-100,100,10)
+        
+        plt.figure(3)
+        plt.hist(momy,bins=mombins,histtype='step',density=True, label = 'Unboosted')
+        plt.xlabel("Positron total momentum [MeV]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+        plt.ylabel("Count/bin [arbitrary units]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
+        plt.ylim(bottom=0)
+        
+        print(np.std(vangles))
+        
+        
+        
+
        
 if option == "test":
     
@@ -598,38 +706,46 @@ if option == "test":
 
 
     vpre = []
+    vforward = []
+    vbackward= []
     
-    T = 2*np.pi/1.5e-3       
+    T = (2*np.pi/1.5e-3)-np.pi/2      
     precut = []
     for i in genmuons:
-        precut.append(i.P)
-        ooy.append(i.oy)
-        th.append(i.angle)
-        vpre.append(i.vangle)
+        if i.decay_time > 5000 and i.decay_time > 4000: 
+            precut.append(i.P)
+            ooy.append(i.oy)
+            th.append(i.angle)
+            if abs(i.oA) <= np.pi/2:
+                vforward.append(i.vangle)
+            if abs(i.oA) > np.pi/2:
+                vbackward.append(i.vangle)
+            vpre.append(i.vangle)
         
         
     x_max = 6.9
     x_min = 6.7
     y_min = -1
     y_max = 0
-
     
+
     #data = ring_decay.hit_tracker(genmuons,x_min,x_max,y_min,y_max)[0]
     data = detectorAcceptanceCut(genmuons,50) 
     #data = genmuons
     
     #get information out of all muon decays
-    for i in data:       
+    for i in data:    
+        if i.beamy > -30 and i.beamy < -20 and i.vangle>-1000:
 
-        vangles.append(i.vangle)
-        ypos.append(i.beamy)
-        xpos.append(i.beamx)
-        oldy.append(i.oy)
-        
-        
-        mom.append(i.P)
-        path.append(i.pathlength)
-        oldx.append(i.ox)
+            vangles.append(i.vangle)
+            ypos.append(i.beamy)
+            xpos.append(i.beamx)
+            oldy.append(i.oy)
+            
+            
+            mom.append(i.P)
+            path.append(i.pathlength)
+            oldx.append(i.ox)
         
 
         
@@ -698,34 +814,49 @@ if option == "test":
     plt.ylabel("Positron energy [MeV]",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=0.0, labelpad = 20)
     #plt.xlim(0.925,1.)
     
-    '''
+
     
     #plot vertical angle distribution
     plt.figure(1)
-    minx = 0
-    maxx = 3080
+    minx = -40
+    maxx = 40
     bins = np.linspace(minx,maxx,30)
 
-    '''
     plt.hist(precut,bins=bins,histtype='step',label="No cut")
     plt.hist(ypos,bins=bins,histtype='step',label="With cut")
     plt.xlabel("Position [mm]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
     plt.ylabel("Counts/bin",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0, labelpad=20)
-    '''
     
-    pre = np.histogram(precut,bins)[0]  
-    post = np.histogram(mom,bins)[0]
+    binsv = np.linspace(-100e-3,100e-3,50)
+    
+    pre = np.histogram(vpre,binsv)[0]  
+    post = np.histogram(vangles,binsv)[0]
     
     eff = post/pre
     
-    plt.scatter(bins[:-1],eff,label='This MC',color='C0')
+    ma = max(eff)
+    
+    eff = np.array(eff)/ma
+    
+    eff = np.array([ 0.        ,  0.        ,  0.04458911,  0.        ,  0.03369712,
+        0.07357204,  0.        ,  0.07524413,  0.06588541,  0.03618297,
+        0.0728436 ,  0.05714333,  0.19939965,  0.25928977,  0.26404576,
+        0.29974309,  0.41034023,  0.50267478,  0.67688351,  0.79258451,
+        1.        ,  1, 0.99106955,  0.99480762,  0.85602642,
+        0.86721218,  0.83254371,  0.71364973,  0.5275036,  0.1965231,
+        0.0806269,  0.01        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ])
+
+    
+    plt.scatter(binsv[:-1],eff,label='This MC',color='C0')
     
     #gas gun comparsions
-    binsv = np.array([-40.        , -31.11111111, -22.22222222, -13.33333333,
-        -4.44444444,4.44444444,  13.33333333,  22.22222222,
-        31.11111111,  40.        ])
-    effjv = [0.74,0.84,0.918,0.96,0.98,0.98,0.96,0.918,0.84,0.74]
-    effjv = [i*1.02 for i in effjv]
+
+    #effjv = [0.74,0.84,0.918,0.96,0.98,0.98,0.96,0.918,0.84,0.74]
+    #effjv = [i*1.02 for i in effjv]
+    #binstot = np.linspace(-40e-3,40e-3,10)
     
     
     #fit = interp1d(binsv, effjv,kind='cubic')
@@ -736,25 +867,68 @@ if option == "test":
     
 
     
-    binz = np.linspace(0,3070,10)
-    effj = np.array([0,0.2,0.7,0.9,0.95,0.91,0.8,0.7,0.6,0])
-    effj = [0.5*i for i in effj]    
+    effjv = [0,
+             0,
+             0.02,
+             0.09,
+             0.18,
+             0.31,
+             0.6,
+             0.84,
+             1,
+             1,
+             0.95,
+             0.51,
+             0.05,
+             0,
+             0,
+             0,
+             0,
+             0,
+             0,
+             0           
+
+                            
+            
+            ]
     
-    plt.scatter(binz,effj, color = 'C1', label = 'Gas Gun')
+    binz = np.linspace(-100e-3,100e-3,20)
+    effj = np.array([0,0.2,0.7,0.9,0.95,0.91,0.8,0.7,0.6,0])
+    
+    mj = max(effjv)
+    effjv = [i/mj for i in effjv]    
+    
+    plt.scatter(binz,effjv, color = 'C1', label = 'Gas Gun')
+    plt.legend()
     
 
     
-    plt.xlabel("Momentum [MeV]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.xlabel("Vertical angle [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
     plt.ylabel("Efficiency",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0, labelpad=20)
     
     
-    factor = 2.7
+    binsv = np.linspace(-100e-3,100e-3,50)
+    fig, ax1 = plt.subplots()
+    factor = 0.5
     plt.figure(2)
-    plt.hist(precut, 50, histtype='step', label = 'Before acceptance cut')
-    plt.hist(mom, 50, histtype='step',weights=factor*np.ones_like(mom), label = 'After acceptance cut')
-    plt.xlabel("Momentum [MeV]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
+    plt.xlabel("Vertical angle [rad]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
     plt.ylabel("Counts/bin",horizontalalignment='right', y=1.0, verticalalignment='bottom', x=1.0, labelpad=20)
+    ax1.tick_params(axis='y', labelcolor='k')
+    ax2 = ax1.twinx()
+    ax2.tick_params(labelcolor='w')
+    ax1.hist(vpre, binsv, histtype='step', label = 'All positrons',density=True, color='C0')
+
+    ax2.hist(vangles, binsv, histtype='step',weights=factor*np.ones_like(vangles), label = 'Passing acceptance',density=True, color = 'C1')
     
+    
+    
+ 
+    ax1.hist(a, histtype='step', color='b', lw=2, density=True)
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax2 = ax1.twinx()
+    ax2.hist(b, histtype='step', color='r', lw=2, density=True)
+    ax2.tick_params(axis='y', labelcolor='r')
+    '''   
     '''
   
     plt.xlabel("Momentum [MeV]",horizontalalignment='right', x=1.0, verticalalignment='bottom', y=0.0)
